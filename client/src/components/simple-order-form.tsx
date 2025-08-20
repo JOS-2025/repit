@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { apiRequest } from '@/lib/queryClient';
+import { MapPin, Navigation } from 'lucide-react';
 
 interface OrderFormProps {
   products: any[];
@@ -16,15 +16,27 @@ export default function SimpleOrderForm({ products }: OrderFormProps) {
   const [customerPhone, setCustomerPhone] = useState('');
   const [selectedProduct, setSelectedProduct] = useState('');
   const [quantity, setQuantity] = useState(1);
+  const [deliveryAddress, setDeliveryAddress] = useState('');
+  const [useCurrentLocation, setUseCurrentLocation] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const orderMutation = useMutation({
     mutationFn: async (orderData: any) => {
-      return apiRequest('/api/orders/simple', {
+      const response = await fetch('/api/orders/simple', {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify(orderData),
       });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to place order');
+      }
+      
+      return response.json();
     },
     onSuccess: () => {
       toast({
@@ -37,6 +49,8 @@ export default function SimpleOrderForm({ products }: OrderFormProps) {
       setCustomerPhone('');
       setSelectedProduct('');
       setQuantity(1);
+      setDeliveryAddress('');
+      setUseCurrentLocation(false);
       queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
     },
     onError: (error: any) => {
@@ -51,10 +65,10 @@ export default function SimpleOrderForm({ products }: OrderFormProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!customerName || !customerPhone || !selectedProduct) {
+    if (!customerName || !customerPhone || !selectedProduct || !deliveryAddress) {
       toast({
         title: "Missing Information",
-        description: "Please fill in all required fields.",
+        description: "Please fill in all required fields including delivery address.",
         variant: "destructive",
       });
       return;
@@ -70,6 +84,7 @@ export default function SimpleOrderForm({ products }: OrderFormProps) {
       quantity,
       unitPrice: selectedProductData?.price,
       totalAmount: selectedProductData?.price * quantity,
+      deliveryAddress,
     });
   };
 
@@ -137,6 +152,60 @@ export default function SimpleOrderForm({ products }: OrderFormProps) {
               onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
               data-testid="input-quantity"
             />
+          </div>
+
+          <div>
+            <Label htmlFor="deliveryAddress">Delivery Address *</Label>
+            <div className="space-y-2">
+              <Input
+                id="deliveryAddress"
+                type="text"
+                value={deliveryAddress}
+                onChange={(e) => setDeliveryAddress(e.target.value)}
+                placeholder="Enter your delivery address"
+                required
+                data-testid="input-delivery-address"
+              />
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (navigator.geolocation) {
+                      navigator.geolocation.getCurrentPosition(
+                        (position) => {
+                          const { latitude, longitude } = position.coords;
+                          setDeliveryAddress(`GPS: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
+                          setUseCurrentLocation(true);
+                          toast({
+                            title: "Location Captured",
+                            description: "We'll use your current location for delivery.",
+                          });
+                        },
+                        () => {
+                          toast({
+                            title: "Location Error",
+                            description: "Unable to get your location. Please enter address manually.",
+                            variant: "destructive",
+                          });
+                        }
+                      );
+                    }
+                  }}
+                  data-testid="button-use-location"
+                >
+                  <Navigation className="w-4 h-4 mr-1" />
+                  Use Current Location
+                </Button>
+                {useCurrentLocation && (
+                  <span className="text-green-600 text-sm flex items-center">
+                    <MapPin className="w-3 h-3 mr-1" />
+                    Location captured
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
 
           {selectedProduct && (

@@ -31,6 +31,8 @@ export default function Home() {
     retry: false,
   });
 
+  const productsArray = Array.isArray(products) ? products : [];
+
   // Handle unauthorized error
   useEffect(() => {
     if (error && isUnauthorizedError(error as Error)) {
@@ -86,7 +88,7 @@ export default function Home() {
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
                 <p className="text-gray-600 dark:text-gray-400">Loading products...</p>
               </div>
-            ) : products.length === 0 ? (
+            ) : productsArray.length === 0 ? (
               <Card>
                 <CardContent className="text-center py-8">
                   <p className="text-gray-600 dark:text-gray-400">
@@ -96,7 +98,7 @@ export default function Home() {
               </Card>
             ) : (
               <div className="space-y-4">
-                {products.map((product: any) => (
+                {productsArray.map((product: any) => (
                   <Card key={product.id} className="hover:shadow-lg transition-shadow" data-testid={`product-${product.id}`}>
                     <CardContent className="p-4">
                       <div className="flex justify-between items-start">
@@ -137,7 +139,7 @@ export default function Home() {
 
           {/* Order Form Section */}
           <div className="lg:sticky lg:top-8">
-            <SimpleOrderForm products={products} />
+            <SimpleOrderForm products={productsArray} />
           </div>
         </div>
       </div>

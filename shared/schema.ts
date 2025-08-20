@@ -147,6 +147,7 @@ export const simpleOrders = pgTable("simple_orders", {
   quantity: integer("quantity").default(1).notNull(),
   unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
+  deliveryAddress: text("delivery_address").notNull(),
   status: varchar("status").default("pending").notNull(), // pending, confirmed, completed, cancelled
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
