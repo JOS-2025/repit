@@ -7,7 +7,8 @@ import {
   insertProductSchema,
   insertOrderSchema,
   insertOrderItemSchema,
-  insertCartItemSchema 
+  insertCartItemSchema,
+  insertSimpleOrderSchema
 } from "@shared/schema";
 import multer from "multer";
 import path from "path";
@@ -295,6 +296,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error creating order:", error);
       res.status(500).json({ message: "Failed to create order" });
+    }
+  });
+
+  // Simple order route (no authentication required)
+  app.post('/api/orders/simple', async (req, res) => {
+    try {
+      const orderData = insertSimpleOrderSchema.parse(req.body);
+      const simpleOrder = await storage.createSimpleOrder(orderData);
+      
+      res.status(201).json(simpleOrder);
+    } catch (error: any) {
+      console.error("Failed to create simple order:", error);
+      if (error.name === 'ZodError') {
+        res.status(400).json({ message: "Invalid order data", errors: error.errors });
+      } else {
+        res.status(500).json({ message: "Failed to create order" });
+      }
+    }
+  });
+
+  // Get simple orders (for farmers/admin)
+  app.get('/api/orders/simple', isAuthenticated, async (req: any, res) => {
+    try {
+      const simpleOrders = await storage.getSimpleOrders();
+      res.json(simpleOrders);
+    } catch (error) {
+      console.error("Error fetching simple orders:", error);
+      res.status(500).json({ message: "Failed to fetch simple orders" });
+    }
+  });
+
+  // Update simple order status
+  app.patch('/api/orders/simple/:id/status', isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+      
+      await storage.updateSimpleOrderStatus(id, status);
+      res.json({ message: "Order status updated successfully" });
+    } catch (error) {
+      console.error("Error updating simple order status:", error);
+      res.status(500).json({ message: "Failed to update order status" });
     }
   });
 

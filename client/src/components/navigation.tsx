@@ -57,6 +57,28 @@ export default function Navigation() {
               >
                 Track Orders
               </Link>
+              <Link 
+                href="/help" 
+                className={`px-3 py-2 text-sm font-medium ${
+                  location === '/help' 
+                    ? 'text-farm-green border-b-2 border-farm-green' 
+                    : 'text-gray-500 hover:text-gray-900'
+                }`}
+                data-testid="link-help"
+              >
+                Help
+              </Link>
+              <Link 
+                href="/terms" 
+                className={`px-3 py-2 text-sm font-medium ${
+                  location === '/terms' 
+                    ? 'text-farm-green border-b-2 border-farm-green' 
+                    : 'text-gray-500 hover:text-gray-900'
+                }`}
+                data-testid="link-terms"
+              >
+                Terms
+              </Link>
               {user?.farmer && (
                 <Link 
                   href="/farmer-dashboard" 

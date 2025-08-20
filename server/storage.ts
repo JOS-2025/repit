@@ -5,6 +5,7 @@ import {
   orders,
   orderItems,
   cartItems,
+  simpleOrders,
   type User,
   type UpsertUser,
   type InsertFarmer,
@@ -20,6 +21,8 @@ import {
   type InsertCartItem,
   type CartItem,
   type CartItemWithProduct,
+  type InsertSimpleOrder,
+  type SimpleOrder,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc } from "drizzle-orm";
@@ -57,6 +60,11 @@ export interface IStorage {
   updateCartItemQuantity(cartItemId: string, quantity: number): Promise<void>;
   removeFromCart(cartItemId: string): Promise<void>;
   clearCart(userId: string): Promise<void>;
+  
+  // Simple order operations
+  createSimpleOrder(order: InsertSimpleOrder): Promise<SimpleOrder>;
+  getSimpleOrders(): Promise<SimpleOrder[]>;
+  updateSimpleOrderStatus(orderId: string, status: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -131,11 +139,15 @@ export class DatabaseStorage implements IStorage {
       .where(eq(products.isActive, true))
       .orderBy(desc(products.createdAt));
 
-    if (category) {
-      query.where(and(eq(products.isActive, true), eq(products.category, category)));
-    }
-
-    const results = await query;
+    const results = category ? 
+      await db
+        .select()
+        .from(products)
+        .innerJoin(farmers, eq(products.farmerId, farmers.id))
+        .innerJoin(users, eq(farmers.userId, users.id))
+        .where(and(eq(products.isActive, true), eq(products.category, category as any)))
+        .orderBy(desc(products.createdAt)) :
+      await query;
     
     return results.map(result => ({
       ...result.products,
@@ -353,6 +365,29 @@ export class DatabaseStorage implements IStorage {
     await db
       .delete(cartItems)
       .where(eq(cartItems.userId, userId));
+  }
+
+  // Simple order operations
+  async createSimpleOrder(order: InsertSimpleOrder): Promise<SimpleOrder> {
+    const [simpleOrder] = await db
+      .insert(simpleOrders)
+      .values(order)
+      .returning();
+    return simpleOrder;
+  }
+
+  async getSimpleOrders(): Promise<SimpleOrder[]> {
+    return await db
+      .select()
+      .from(simpleOrders)
+      .orderBy(desc(simpleOrders.createdAt));
+  }
+
+  async updateSimpleOrderStatus(orderId: string, status: string): Promise<void> {
+    await db
+      .update(simpleOrders)
+      .set({ status, updatedAt: new Date() })
+      .where(eq(simpleOrders.id, orderId));
   }
 }
 
