@@ -1,0 +1,359 @@
+import {
+  users,
+  farmers,
+  products,
+  orders,
+  orderItems,
+  cartItems,
+  type User,
+  type UpsertUser,
+  type InsertFarmer,
+  type Farmer,
+  type InsertProduct,
+  type Product,
+  type ProductWithFarmer,
+  type InsertOrder,
+  type Order,
+  type OrderWithDetails,
+  type InsertOrderItem,
+  type OrderItem,
+  type InsertCartItem,
+  type CartItem,
+  type CartItemWithProduct,
+} from "@shared/schema";
+import { db } from "./db";
+import { eq, and, desc, asc } from "drizzle-orm";
+
+export interface IStorage {
+  // User operations (required for Replit Auth)
+  getUser(id: string): Promise<User | undefined>;
+  upsertUser(user: UpsertUser): Promise<User>;
+  
+  // Farmer operations
+  createFarmer(farmer: InsertFarmer): Promise<Farmer>;
+  getFarmerByUserId(userId: string): Promise<Farmer | undefined>;
+  getFarmer(farmerId: string): Promise<Farmer | undefined>;
+  updateFarmerVerification(farmerId: string, isVerified: boolean): Promise<void>;
+  
+  // Product operations
+  createProduct(product: InsertProduct): Promise<Product>;
+  getProducts(category?: string): Promise<ProductWithFarmer[]>;
+  getProductsByFarmer(farmerId: string): Promise<Product[]>;
+  getProduct(productId: string): Promise<ProductWithFarmer | undefined>;
+  updateProduct(productId: string, updates: Partial<InsertProduct>): Promise<Product>;
+  deleteProduct(productId: string): Promise<void>;
+  
+  // Order operations
+  createOrder(order: InsertOrder): Promise<Order>;
+  createOrderItem(orderItem: InsertOrderItem): Promise<OrderItem>;
+  getOrdersByCustomer(customerId: string): Promise<OrderWithDetails[]>;
+  getOrdersByFarmer(farmerId: string): Promise<OrderWithDetails[]>;
+  getOrder(orderId: string): Promise<OrderWithDetails | undefined>;
+  updateOrderStatus(orderId: string, status: string): Promise<void>;
+  
+  // Cart operations
+  addToCart(cartItem: InsertCartItem): Promise<CartItem>;
+  getCartItems(userId: string): Promise<CartItemWithProduct[]>;
+  updateCartItemQuantity(cartItemId: string, quantity: number): Promise<void>;
+  removeFromCart(cartItemId: string): Promise<void>;
+  clearCart(userId: string): Promise<void>;
+}
+
+export class DatabaseStorage implements IStorage {
+  // User operations
+  async getUser(id: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async upsertUser(userData: UpsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(userData)
+      .onConflictDoUpdate({
+        target: users.id,
+        set: {
+          ...userData,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return user;
+  }
+
+  // Farmer operations
+  async createFarmer(farmer: InsertFarmer): Promise<Farmer> {
+    const [newFarmer] = await db
+      .insert(farmers)
+      .values(farmer)
+      .returning();
+    return newFarmer;
+  }
+
+  async getFarmerByUserId(userId: string): Promise<Farmer | undefined> {
+    const [farmer] = await db
+      .select()
+      .from(farmers)
+      .where(eq(farmers.userId, userId));
+    return farmer;
+  }
+
+  async getFarmer(farmerId: string): Promise<Farmer | undefined> {
+    const [farmer] = await db
+      .select()
+      .from(farmers)
+      .where(eq(farmers.id, farmerId));
+    return farmer;
+  }
+
+  async updateFarmerVerification(farmerId: string, isVerified: boolean): Promise<void> {
+    await db
+      .update(farmers)
+      .set({ isVerified, updatedAt: new Date() })
+      .where(eq(farmers.id, farmerId));
+  }
+
+  // Product operations
+  async createProduct(product: InsertProduct): Promise<Product> {
+    const [newProduct] = await db
+      .insert(products)
+      .values(product)
+      .returning();
+    return newProduct;
+  }
+
+  async getProducts(category?: string): Promise<ProductWithFarmer[]> {
+    const query = db
+      .select()
+      .from(products)
+      .innerJoin(farmers, eq(products.farmerId, farmers.id))
+      .innerJoin(users, eq(farmers.userId, users.id))
+      .where(eq(products.isActive, true))
+      .orderBy(desc(products.createdAt));
+
+    if (category) {
+      query.where(and(eq(products.isActive, true), eq(products.category, category)));
+    }
+
+    const results = await query;
+    
+    return results.map(result => ({
+      ...result.products,
+      farmer: {
+        ...result.farmers,
+        user: result.users
+      }
+    }));
+  }
+
+  async getProductsByFarmer(farmerId: string): Promise<Product[]> {
+    return await db
+      .select()
+      .from(products)
+      .where(eq(products.farmerId, farmerId))
+      .orderBy(desc(products.createdAt));
+  }
+
+  async getProduct(productId: string): Promise<ProductWithFarmer | undefined> {
+    const [result] = await db
+      .select()
+      .from(products)
+      .innerJoin(farmers, eq(products.farmerId, farmers.id))
+      .innerJoin(users, eq(farmers.userId, users.id))
+      .where(eq(products.id, productId));
+
+    if (!result) return undefined;
+
+    return {
+      ...result.products,
+      farmer: {
+        ...result.farmers,
+        user: result.users
+      }
+    };
+  }
+
+  async updateProduct(productId: string, updates: Partial<InsertProduct>): Promise<Product> {
+    const [updatedProduct] = await db
+      .update(products)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(products.id, productId))
+      .returning();
+    return updatedProduct;
+  }
+
+  async deleteProduct(productId: string): Promise<void> {
+    await db
+      .update(products)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(eq(products.id, productId));
+  }
+
+  // Order operations
+  async createOrder(order: InsertOrder): Promise<Order> {
+    const [newOrder] = await db
+      .insert(orders)
+      .values(order)
+      .returning();
+    return newOrder;
+  }
+
+  async createOrderItem(orderItem: InsertOrderItem): Promise<OrderItem> {
+    const [newOrderItem] = await db
+      .insert(orderItems)
+      .values(orderItem)
+      .returning();
+    return newOrderItem;
+  }
+
+  async getOrdersByCustomer(customerId: string): Promise<OrderWithDetails[]> {
+    const results = await db
+      .select()
+      .from(orders)
+      .innerJoin(users, eq(orders.customerId, users.id))
+      .innerJoin(farmers, eq(orders.farmerId, farmers.id))
+      .leftJoin(orderItems, eq(orders.id, orderItems.orderId))
+      .leftJoin(products, eq(orderItems.productId, products.id))
+      .where(eq(orders.customerId, customerId))
+      .orderBy(desc(orders.createdAt));
+
+    return this.groupOrderResults(results);
+  }
+
+  async getOrdersByFarmer(farmerId: string): Promise<OrderWithDetails[]> {
+    const results = await db
+      .select()
+      .from(orders)
+      .innerJoin(users, eq(orders.customerId, users.id))
+      .innerJoin(farmers, eq(orders.farmerId, farmers.id))
+      .leftJoin(orderItems, eq(orders.id, orderItems.orderId))
+      .leftJoin(products, eq(orderItems.productId, products.id))
+      .where(eq(orders.farmerId, farmerId))
+      .orderBy(desc(orders.createdAt));
+
+    return this.groupOrderResults(results);
+  }
+
+  async getOrder(orderId: string): Promise<OrderWithDetails | undefined> {
+    const results = await db
+      .select()
+      .from(orders)
+      .innerJoin(users, eq(orders.customerId, users.id))
+      .innerJoin(farmers, eq(orders.farmerId, farmers.id))
+      .leftJoin(orderItems, eq(orders.id, orderItems.orderId))
+      .leftJoin(products, eq(orderItems.productId, products.id))
+      .where(eq(orders.id, orderId));
+
+    const grouped = this.groupOrderResults(results);
+    return grouped[0];
+  }
+
+  async updateOrderStatus(orderId: string, status: string): Promise<void> {
+    await db
+      .update(orders)
+      .set({ status: status as any, updatedAt: new Date() })
+      .where(eq(orders.id, orderId));
+  }
+
+  private groupOrderResults(results: any[]): OrderWithDetails[] {
+    const orderMap = new Map();
+
+    results.forEach(result => {
+      const orderId = result.orders.id;
+      
+      if (!orderMap.has(orderId)) {
+        orderMap.set(orderId, {
+          ...result.orders,
+          customer: result.users,
+          farmer: result.farmers,
+          orderItems: []
+        });
+      }
+
+      if (result.order_items && result.products) {
+        const order = orderMap.get(orderId);
+        order.orderItems.push({
+          ...result.order_items,
+          product: result.products
+        });
+      }
+    });
+
+    return Array.from(orderMap.values());
+  }
+
+  // Cart operations
+  async addToCart(cartItem: InsertCartItem): Promise<CartItem> {
+    // Check if item already exists in cart
+    const [existing] = await db
+      .select()
+      .from(cartItems)
+      .where(and(
+        eq(cartItems.userId, cartItem.userId),
+        eq(cartItems.productId, cartItem.productId)
+      ));
+
+    if (existing) {
+      // Update quantity
+      const [updated] = await db
+        .update(cartItems)
+        .set({ 
+          quantity: existing.quantity + cartItem.quantity,
+          updatedAt: new Date()
+        })
+        .where(eq(cartItems.id, existing.id))
+        .returning();
+      return updated;
+    } else {
+      // Insert new cart item
+      const [newCartItem] = await db
+        .insert(cartItems)
+        .values(cartItem)
+        .returning();
+      return newCartItem;
+    }
+  }
+
+  async getCartItems(userId: string): Promise<CartItemWithProduct[]> {
+    const results = await db
+      .select()
+      .from(cartItems)
+      .innerJoin(products, eq(cartItems.productId, products.id))
+      .innerJoin(farmers, eq(products.farmerId, farmers.id))
+      .innerJoin(users, eq(farmers.userId, users.id))
+      .where(eq(cartItems.userId, userId))
+      .orderBy(asc(cartItems.createdAt));
+
+    return results.map(result => ({
+      ...result.cart_items,
+      product: {
+        ...result.products,
+        farmer: {
+          ...result.farmers,
+          user: result.users
+        }
+      }
+    }));
+  }
+
+  async updateCartItemQuantity(cartItemId: string, quantity: number): Promise<void> {
+    await db
+      .update(cartItems)
+      .set({ quantity, updatedAt: new Date() })
+      .where(eq(cartItems.id, cartItemId));
+  }
+
+  async removeFromCart(cartItemId: string): Promise<void> {
+    await db
+      .delete(cartItems)
+      .where(eq(cartItems.id, cartItemId));
+  }
+
+  async clearCart(userId: string): Promise<void> {
+    await db
+      .delete(cartItems)
+      .where(eq(cartItems.userId, userId));
+  }
+}
+
+export const storage = new DatabaseStorage();
