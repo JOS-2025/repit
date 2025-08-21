@@ -2,6 +2,7 @@ import express, { type Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
+import { setupGPSTracking, updateDriverLocation, updateDeliveryStatus, calculateETA } from "./gpsTracking";
 import { 
   insertFarmerSchema,
   insertProductSchema,
@@ -417,6 +418,109 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GPS Tracking routes for drivers
+  app.get('/api/driver/profile', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const driver = await storage.getDriverByUserId(userId);
+      if (!driver) {
+        return res.status(404).json({ message: "Driver profile not found" });
+      }
+      res.json(driver);
+    } catch (error) {
+      console.error("Error fetching driver profile:", error);
+      res.status(500).json({ message: "Failed to fetch driver profile" });
+    }
+  });
+
+  app.get('/api/driver/assignments', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const driver = await storage.getDriverByUserId(userId);
+      if (!driver) {
+        return res.status(404).json({ message: "Driver profile not found" });
+      }
+      
+      const assignments = await storage.getDriverAssignments(driver.id);
+      res.json(assignments);
+    } catch (error) {
+      console.error("Error fetching driver assignments:", error);
+      res.status(500).json({ message: "Failed to fetch assignments" });
+    }
+  });
+
+  app.post('/api/driver/location', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { latitude, longitude } = req.body;
+      
+      const driver = await storage.getDriverByUserId(userId);
+      if (!driver) {
+        return res.status(404).json({ message: "Driver profile not found" });
+      }
+
+      await updateDriverLocation(driver.id, latitude, longitude);
+      res.json({ message: "Location updated successfully" });
+    } catch (error) {
+      console.error("Error updating driver location:", error);
+      res.status(500).json({ message: "Failed to update location" });
+    }
+  });
+
+  app.post('/api/driver/delivery/:deliveryId/status', isAuthenticated, async (req: any, res) => {
+    try {
+      const { deliveryId } = req.params;
+      const { status, latitude, longitude } = req.body;
+      
+      await updateDeliveryStatus(deliveryId, status, latitude, longitude);
+      res.json({ message: "Delivery status updated successfully" });
+    } catch (error) {
+      console.error("Error updating delivery status:", error);
+      res.status(500).json({ message: "Failed to update delivery status" });
+    }
+  });
+
+  // GPS Tracking routes for customers
+  app.get('/api/tracking/:orderId', async (req, res) => {
+    try {
+      const { orderId } = req.params;
+      const trackingData = await storage.getDeliveryTracking(orderId);
+      
+      if (!trackingData) {
+        return res.status(404).json({ message: "Tracking information not found" });
+      }
+      
+      res.json(trackingData);
+    } catch (error) {
+      console.error("Error fetching tracking data:", error);
+      res.status(500).json({ message: "Failed to fetch tracking data" });
+    }
+  });
+
+  // Create delivery assignment
+  app.post('/api/delivery/assign', isAuthenticated, async (req: any, res) => {
+    try {
+      const { orderId, driverId, pickupAddress, deliveryAddress } = req.body;
+      
+      const assignment = await storage.createDeliveryAssignment({
+        orderId,
+        driverId,
+        pickupAddress,
+        deliveryAddress,
+        status: 'assigned',
+      });
+      
+      res.json(assignment);
+    } catch (error) {
+      console.error("Error creating delivery assignment:", error);
+      res.status(500).json({ message: "Failed to create delivery assignment" });
+    }
+  });
+
   const httpServer = createServer(app);
+  
+  // Setup GPS tracking WebSocket
+  setupGPSTracking(httpServer);
+  
   return httpServer;
 }

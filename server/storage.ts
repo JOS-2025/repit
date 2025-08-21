@@ -6,6 +6,9 @@ import {
   orderItems,
   cartItems,
   simpleOrders,
+  deliveryDrivers,
+  deliveryTracking,
+  locationHistory,
   type User,
   type UpsertUser,
   type InsertFarmer,
@@ -23,6 +26,11 @@ import {
   type CartItemWithProduct,
   type InsertSimpleOrder,
   type SimpleOrder,
+  type DeliveryDriver,
+  type InsertDeliveryDriver,
+  type DeliveryTracking,
+  type InsertDeliveryTracking,
+  type DeliveryTrackingWithDriver,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc } from "drizzle-orm";
@@ -65,6 +73,12 @@ export interface IStorage {
   createSimpleOrder(order: InsertSimpleOrder): Promise<SimpleOrder>;
   getSimpleOrders(): Promise<SimpleOrder[]>;
   updateSimpleOrderStatus(orderId: string, status: string): Promise<void>;
+  
+  // GPS Tracking operations
+  getDriverByUserId(userId: string): Promise<DeliveryDriver | undefined>;
+  getDriverAssignments(driverId: string): Promise<any[]>;
+  createDeliveryAssignment(assignment: any): Promise<any>;
+  getDeliveryTracking(orderId: string): Promise<any>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -388,6 +402,122 @@ export class DatabaseStorage implements IStorage {
       .update(simpleOrders)
       .set({ status, updatedAt: new Date() })
       .where(eq(simpleOrders.id, orderId));
+  }
+
+  // GPS Tracking operations
+  async getDriverByUserId(userId: string): Promise<DeliveryDriver | undefined> {
+    const [driver] = await db
+      .select()
+      .from(deliveryDrivers)
+      .where(eq(deliveryDrivers.userId, userId));
+    return driver;
+  }
+
+  async getDriverAssignments(driverId: string): Promise<any[]> {
+    const assignments = await db
+      .select({
+        id: deliveryTracking.id,
+        orderId: deliveryTracking.orderId,
+        status: deliveryTracking.status,
+        pickupAddress: deliveryTracking.pickupAddress,
+        deliveryAddress: deliveryTracking.deliveryAddress,
+        pickupLatitude: deliveryTracking.pickupLatitude,
+        pickupLongitude: deliveryTracking.pickupLongitude,
+        deliveryLatitude: deliveryTracking.deliveryLatitude,
+        deliveryLongitude: deliveryTracking.deliveryLongitude,
+        estimatedArrival: deliveryTracking.estimatedArrival,
+        distanceKm: deliveryTracking.distanceKm,
+        createdAt: deliveryTracking.createdAt,
+        customerName: orders.customerId, // Will need to join with users
+        customerPhone: orders.phoneNumber,
+      })
+      .from(deliveryTracking)
+      .innerJoin(orders, eq(deliveryTracking.orderId, orders.id))
+      .where(eq(deliveryTracking.driverId, driverId))
+      .orderBy(desc(deliveryTracking.createdAt));
+
+    // Get order items for each assignment
+    const assignmentsWithDetails = [];
+    for (const assignment of assignments) {
+      const assignmentOrderItems = await db
+        .select({
+          productName: products.name,
+          quantity: orderItems.quantity,
+          farmerName: farmers.farmName,
+        })
+        .from(orderItems)
+        .innerJoin(products, eq(orderItems.productId, products.id))
+        .innerJoin(farmers, eq(products.farmerId, farmers.id))
+        .where(eq(orderItems.orderId, assignment.orderId));
+
+      // Get customer details
+      const [customer] = await db
+        .select({
+          firstName: users.firstName,
+          lastName: users.lastName,
+        })
+        .from(users)
+        .where(eq(users.id, assignment.customerName));
+
+      assignmentsWithDetails.push({
+        ...assignment,
+        customerName: customer ? `${customer.firstName} ${customer.lastName}` : 'Unknown Customer',
+        orderItems: assignmentOrderItems,
+      });
+    }
+
+    return assignmentsWithDetails;
+  }
+
+  async createDeliveryAssignment(assignment: any): Promise<any> {
+    const [newAssignment] = await db
+      .insert(deliveryTracking)
+      .values(assignment)
+      .returning();
+    return newAssignment;
+  }
+
+  async getDeliveryTracking(orderId: string): Promise<any> {
+    const [tracking] = await db
+      .select({
+        orderId: deliveryTracking.orderId,
+        status: deliveryTracking.status,
+        currentLatitude: deliveryTracking.currentLatitude,
+        currentLongitude: deliveryTracking.currentLongitude,
+        pickupAddress: deliveryTracking.pickupAddress,
+        deliveryAddress: deliveryTracking.deliveryAddress,
+        estimatedArrival: deliveryTracking.estimatedArrival,
+        distanceKm: deliveryTracking.distanceKm,
+        lastUpdate: deliveryTracking.updatedAt,
+        driverName: deliveryDrivers.driverName,
+        driverPhone: deliveryDrivers.phoneNumber,
+        vehicleType: deliveryDrivers.vehicleType,
+        vehicleNumber: deliveryDrivers.vehicleNumber,
+      })
+      .from(deliveryTracking)
+      .leftJoin(deliveryDrivers, eq(deliveryTracking.driverId, deliveryDrivers.id))
+      .where(eq(deliveryTracking.orderId, orderId))
+      .limit(1);
+
+    if (!tracking) return null;
+
+    // Get location history
+    const locationHistoryData = await db
+      .select({
+        latitude: locationHistory.latitude,
+        longitude: locationHistory.longitude,
+        recordedAt: locationHistory.recordedAt,
+        speed: locationHistory.speed,
+      })
+      .from(locationHistory)
+      .where(eq(locationHistory.deliveryTrackingId, tracking.orderId))
+      .orderBy(desc(locationHistory.recordedAt))
+      .limit(20);
+
+    return {
+      ...tracking,
+      locationHistory: locationHistoryData.reverse(), // Oldest first for route display
+    };
   }
 }
 

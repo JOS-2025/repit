@@ -348,6 +348,56 @@ export const orderTracking = pgTable("order_tracking", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Delivery drivers table
+export const deliveryDrivers = pgTable("delivery_drivers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  driverName: varchar("driver_name").notNull(),
+  phoneNumber: varchar("phone_number").notNull(),
+  vehicleType: varchar("vehicle_type").notNull(), // motorcycle, bicycle, car, truck
+  vehicleNumber: varchar("vehicle_number"),
+  isActive: boolean("is_active").default(true).notNull(),
+  currentLatitude: decimal("current_latitude", { precision: 10, scale: 7 }),
+  currentLongitude: decimal("current_longitude", { precision: 10, scale: 7 }),
+  lastLocationUpdate: timestamp("last_location_update"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Live delivery tracking table for GPS locations
+export const deliveryTracking = pgTable("delivery_tracking", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orderId: varchar("order_id").references(() => orders.id).notNull(),
+  driverId: varchar("driver_id").references(() => deliveryDrivers.id),
+  status: varchar("status").notNull(), // assigned, picked_up, in_transit, delivered, cancelled
+  pickupAddress: text("pickup_address"),
+  deliveryAddress: text("delivery_address").notNull(),
+  pickupLatitude: decimal("pickup_latitude", { precision: 10, scale: 7 }),
+  pickupLongitude: decimal("pickup_longitude", { precision: 10, scale: 7 }),
+  deliveryLatitude: decimal("delivery_latitude", { precision: 10, scale: 7 }),
+  deliveryLongitude: decimal("delivery_longitude", { precision: 10, scale: 7 }),
+  currentLatitude: decimal("current_latitude", { precision: 10, scale: 7 }),
+  currentLongitude: decimal("current_longitude", { precision: 10, scale: 7 }),
+  estimatedArrival: timestamp("estimated_arrival"),
+  actualPickupTime: timestamp("actual_pickup_time"),
+  actualDeliveryTime: timestamp("actual_delivery_time"),
+  distanceKm: decimal("distance_km", { precision: 8, scale: 3 }),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Location history for delivery tracking
+export const locationHistory = pgTable("location_history", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  deliveryTrackingId: varchar("delivery_tracking_id").references(() => deliveryTracking.id).notNull(),
+  latitude: decimal("latitude", { precision: 10, scale: 7 }).notNull(),
+  longitude: decimal("longitude", { precision: 10, scale: 7 }).notNull(),
+  accuracy: decimal("accuracy", { precision: 8, scale: 2 }), // GPS accuracy in meters
+  speed: decimal("speed", { precision: 6, scale: 2 }), // Speed in km/h
+  bearing: decimal("bearing", { precision: 6, scale: 2 }), // Direction in degrees
+  recordedAt: timestamp("recorded_at").defaultNow(),
+});
+
 // Community posts (recipes, tips, stories)
 export const communityPosts = pgTable("community_posts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -407,4 +457,23 @@ export type OrderWithDetails = Order & {
 
 export type CartItemWithProduct = CartItem & {
   product: ProductWithFarmer;
+};
+
+// GPS Tracking Types
+export type DeliveryDriver = typeof deliveryDrivers.$inferSelect;
+export type InsertDeliveryDriver = typeof deliveryDrivers.$inferInsert;
+export type DeliveryTracking = typeof deliveryTracking.$inferSelect;
+export type InsertDeliveryTracking = typeof deliveryTracking.$inferInsert;
+export type LocationHistory = typeof locationHistory.$inferSelect;
+export type InsertLocationHistory = typeof locationHistory.$inferInsert;
+
+export type DeliveryTrackingWithDriver = DeliveryTracking & {
+  driver: DeliveryDriver & { user: User };
+};
+
+export type OrderWithDeliveryTracking = Order & {
+  customer: User;
+  farmer: Farmer;
+  deliveryTracking?: DeliveryTrackingWithDriver;
+  orderItems: (OrderItem & { product: Product })[];
 };

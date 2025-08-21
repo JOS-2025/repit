@@ -38,6 +38,8 @@ function Router() {
           <Route path="/farmer-dashboard" component={FarmerDashboard} />
           <Route path="/products" component={Products} />
           <Route path="/orders" component={OrderTracking} />
+          <Route path="/driver-dashboard" component={() => import("@/pages/driver-dashboard").then(m => ({ default: m.default }))} />
+          <Route path="/tracking" component={() => import("@/pages/order-tracking-live").then(m => ({ default: m.default }))} />
           <Route path="/help" component={HelpCenter} />
           <Route path="/terms" component={TermsConditions} />
           <Route path="/privacy" component={PrivacyPolicy} />
