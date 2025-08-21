@@ -180,30 +180,74 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// Handle background sync (future enhancement)
+// Handle background sync for orders
 self.addEventListener('sync', (event) => {
   console.log('[Service Worker] Background sync:', event.tag);
   
-  if (event.tag === 'background-sync') {
-    event.waitUntil(
-      // Handle background sync operations
-      console.log('[Service Worker] Performing background sync')
-    );
+  if (event.tag === 'sync-orders') {
+    event.waitUntil(syncOrders());
   }
 });
 
-// Handle push notifications (future enhancement)
+// Background sync function for orders
+async function syncOrders() {
+  console.log('[Service Worker] Syncing orders...');
+  
+  try {
+    // Get pending orders from IndexedDB or cache
+    const cache = await caches.open(CACHE_NAME);
+    const pendingOrdersResponse = await cache.match('/offline-orders');
+    
+    if (pendingOrdersResponse) {
+      const pendingOrders = await pendingOrdersResponse.json();
+      
+      for (const order of pendingOrders.orders || []) {
+        try {
+          // Attempt to sync each order
+          const response = await fetch('/api/orders', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(order)
+          });
+          
+          if (response.ok) {
+            console.log('[Service Worker] Order synced successfully:', order.id);
+            
+            // Show notification for successful sync
+            self.registration.showNotification('Order Synced', {
+              body: `Your order #${order.id} has been processed successfully!`,
+              icon: '/icons/icon-192x192.png',
+              badge: '/icons/icon-72x72.png',
+              tag: `order-sync-${order.id}`,
+              data: { orderId: order.id, url: `/orders/${order.id}` }
+            });
+          }
+        } catch (error) {
+          console.error('[Service Worker] Failed to sync order:', error);
+        }
+      }
+      
+      // Clear synced orders
+      await cache.delete('/offline-orders');
+    }
+  } catch (error) {
+    console.error('[Service Worker] Background sync failed:', error);
+  }
+}
+
+// Handle push notifications
 self.addEventListener('push', (event) => {
   console.log('[Service Worker] Push received:', event);
   
-  const options = {
-    body: event.data ? event.data.text() : 'New notification from FramCart',
+  let notificationData = {
+    title: 'FramCart',
+    body: 'You have a new notification',
     icon: '/icons/icon-192x192.png',
     badge: '/icons/icon-72x72.png',
     vibrate: [200, 100, 200],
-    data: {
-      url: '/'
-    },
+    data: { url: '/' },
     actions: [
       {
         action: 'view',
@@ -211,15 +255,42 @@ self.addEventListener('push', (event) => {
         icon: '/icons/icon-72x72.png'
       },
       {
-        action: 'close',
-        title: 'Close',
+        action: 'dismiss',
+        title: 'Dismiss',
         icon: '/icons/icon-72x72.png'
       }
     ]
   };
 
+  // Parse push data if available
+  if (event.data) {
+    try {
+      const pushData = event.data.json();
+      notificationData = {
+        ...notificationData,
+        title: pushData.title || notificationData.title,
+        body: pushData.body || notificationData.body,
+        data: pushData.data || notificationData.data,
+        tag: pushData.tag || 'general',
+        requireInteraction: pushData.requireInteraction || false
+      };
+    } catch (error) {
+      console.error('[Service Worker] Failed to parse push data:', error);
+      notificationData.body = event.data.text() || notificationData.body;
+    }
+  }
+
   event.waitUntil(
-    self.registration.showNotification('FramCart', options)
+    self.registration.showNotification(notificationData.title, {
+      body: notificationData.body,
+      icon: notificationData.icon,
+      badge: notificationData.badge,
+      vibrate: notificationData.vibrate,
+      data: notificationData.data,
+      actions: notificationData.actions,
+      tag: notificationData.tag,
+      requireInteraction: notificationData.requireInteraction
+    })
   );
 });
 
