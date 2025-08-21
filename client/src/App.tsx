@@ -11,6 +11,8 @@ import Home from "@/pages/home";
 import FarmerDashboard from "@/pages/farmer-dashboard";
 import Products from "@/pages/products";
 import OrderTracking from "@/pages/order-tracking";
+import DriverDashboard from "@/pages/driver-dashboard";
+import OrderTrackingLive from "@/pages/order-tracking-live";
 import HelpCenter from "@/pages/help-center";
 import TermsConditions from "@/pages/terms-conditions";
 import PrivacyPolicy from "@/pages/privacy-policy";
@@ -28,6 +30,7 @@ function Router() {
       {isLoading || !isAuthenticated ? (
         <>
           <Route path="/" component={Landing} />
+          <Route path="/products" component={Products} />
           <Route path="/help" component={HelpCenter} />
           <Route path="/terms" component={TermsConditions} />
           <Route path="/privacy" component={PrivacyPolicy} />
@@ -38,8 +41,8 @@ function Router() {
           <Route path="/farmer-dashboard" component={FarmerDashboard} />
           <Route path="/products" component={Products} />
           <Route path="/orders" component={OrderTracking} />
-          <Route path="/driver-dashboard" component={() => import("@/pages/driver-dashboard").then(m => ({ default: m.default }))} />
-          <Route path="/tracking" component={() => import("@/pages/order-tracking-live").then(m => ({ default: m.default }))} />
+          <Route path="/driver-dashboard" component={DriverDashboard} />
+          <Route path="/tracking" component={OrderTrackingLive} />
           <Route path="/help" component={HelpCenter} />
           <Route path="/terms" component={TermsConditions} />
           <Route path="/privacy" component={PrivacyPolicy} />
