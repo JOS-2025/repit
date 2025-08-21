@@ -578,3 +578,362 @@ export type OrderWithDeliveryTracking = Order & {
   deliveryTracking?: DeliveryTrackingWithDriver;
   orderItems: (OrderItem & { product: Product })[];
 };
+
+// ============= ESCROW PAYMENT SYSTEM =============
+
+// Escrow transaction status
+export const escrowStatusEnum = pgEnum("escrow_status", [
+  "pending",          // Payment initiated, awaiting confirmation
+  "held",             // Funds held in escrow
+  "released",         // Funds released to farmer
+  "refunded",         // Funds refunded to customer
+  "disputed"          // Dispute raised
+]);
+
+// Mobile money providers
+export const mobileMoneyProviderEnum = pgEnum("mobile_money_provider", [
+  "mpesa",
+  "airtel_money",
+  "tigopesa",
+  "card"
+]);
+
+// Escrow transactions table
+export const escrowTransactions = pgTable("escrow_transactions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orderId: varchar("order_id").notNull().references(() => orders.id),
+  customerId: varchar("customer_id").notNull().references(() => users.id),
+  farmerId: varchar("farmer_id").notNull().references(() => farmers.id),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  provider: mobileMoneyProviderEnum("provider").notNull(),
+  status: escrowStatusEnum("status").default("pending"),
+  transactionRef: varchar("transaction_ref"), // External payment provider reference
+  customerPhoneNumber: varchar("customer_phone_number"),
+  farmerPhoneNumber: varchar("farmer_phone_number"),
+  paymentProof: text("payment_proof"), // Screenshot or receipt URL
+  releaseCondition: text("release_condition").default("delivery_confirmed"),
+  holdReason: text("hold_reason"),
+  disputeReason: text("dispute_reason"),
+  heldAt: timestamp("held_at"),
+  releasedAt: timestamp("released_at"),
+  refundedAt: timestamp("refunded_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// ============= CROWDSOURCED DELIVERY NETWORK =============
+
+// Rider verification status
+export const riderStatusEnum = pgEnum("rider_status", [
+  "pending",
+  "verified", 
+  "active",
+  "suspended",
+  "banned"
+]);
+
+// Boda boda riders registration
+export const deliveryRiders = pgTable("delivery_riders", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  riderName: varchar("rider_name").notNull(),
+  phoneNumber: varchar("phone_number").notNull(),
+  idNumber: varchar("id_number").notNull(),
+  licenseNumber: varchar("license_number"),
+  vehicleType: varchar("vehicle_type").notNull(), // motorcycle, bicycle, van
+  vehicleRegistration: varchar("vehicle_registration"),
+  bankAccount: varchar("bank_account"), // For payments
+  status: riderStatusEnum("status").default("pending"),
+  rating: decimal("rating", { precision: 3, scale: 2 }).default("0"),
+  totalDeliveries: integer("total_deliveries").default(0),
+  currentLatitude: decimal("current_latitude", { precision: 10, scale: 7 }),
+  currentLongitude: decimal("current_longitude", { precision: 10, scale: 7 }),
+  isOnline: boolean("is_online").default(false),
+  lastLocationUpdate: timestamp("last_location_update"),
+  verificationDocuments: text("verification_documents").array(), // ID, license photos
+  emergencyContact: varchar("emergency_contact"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Delivery assignments for route optimization
+export const deliveryAssignments = pgTable("delivery_assignments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orderId: varchar("order_id").notNull().references(() => orders.id),
+  riderId: varchar("rider_id").notNull().references(() => deliveryRiders.id),
+  status: varchar("status").default("assigned"), // assigned, accepted, rejected, completed
+  estimatedDistance: decimal("estimated_distance", { precision: 8, scale: 2 }),
+  estimatedDuration: integer("estimated_duration"), // minutes
+  actualDistance: decimal("actual_distance", { precision: 8, scale: 2 }),
+  actualDuration: integer("actual_duration"), // minutes
+  deliveryFee: decimal("delivery_fee", { precision: 10, scale: 2 }),
+  riderEarnings: decimal("rider_earnings", { precision: 10, scale: 2 }),
+  pickupAddress: text("pickup_address").notNull(),
+  deliveryAddress: text("delivery_address").notNull(),
+  specialInstructions: text("special_instructions"),
+  acceptedAt: timestamp("accepted_at"),
+  pickedUpAt: timestamp("picked_up_at"),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// ============= QUALITY ASSURANCE SYSTEM =============
+
+// Certification types
+export const certificationTypeEnum = pgEnum("certification_type", [
+  "organic",
+  "fair_trade",
+  "gmo_free",
+  "pesticide_free",
+  "local_sourced",
+  "picked_today"
+]);
+
+// Farm photos and certifications
+export const farmCertifications = pgTable("farm_certifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  farmerId: varchar("farmer_id").notNull().references(() => farmers.id),
+  certificationType: certificationTypeEnum("certification_type").notNull(),
+  issuer: varchar("issuer"), // Certification body
+  certificateNumber: varchar("certificate_number"),
+  issueDate: date("issue_date"),
+  expiryDate: date("expiry_date"),
+  documentUrl: text("document_url"), // Certificate document
+  isVerified: boolean("is_verified").default(false),
+  verifiedBy: varchar("verified_by").references(() => admins.id),
+  verifiedAt: timestamp("verified_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Product quality photos and badges
+export const productQuality = pgTable("product_quality", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  productId: varchar("product_id").notNull().references(() => products.id),
+  farmPhotos: text("farm_photos").array(), // Photos of the farm/field
+  harvestPhotos: text("harvest_photos").array(), // Photos during harvest
+  qualityGrade: varchar("quality_grade"), // A, B, C grade
+  pickedToday: boolean("picked_today").default(false),
+  harvestMethod: varchar("harvest_method"), // hand_picked, machine_harvested
+  storageConditions: text("storage_conditions"),
+  qualityNotes: text("quality_notes"),
+  inspectedBy: varchar("inspected_by").references(() => users.id),
+  inspectionDate: timestamp("inspection_date"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// ============= CUSTOMIZABLE PRODUCT BASKETS =============
+
+// Basket templates
+export const basketTemplates = pgTable("basket_templates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").notNull(),
+  description: text("description"),
+  category: varchar("category").notNull(), // family, individual, bulk
+  imageUrl: text("image_url"),
+  totalItems: integer("total_items").default(0),
+  estimatedPrice: decimal("estimated_price", { precision: 10, scale: 2 }),
+  nutritionScore: decimal("nutrition_score", { precision: 5, scale: 2 }),
+  isActive: boolean("is_active").default(true),
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Basket items configuration
+export const basketItems = pgTable("basket_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  basketId: varchar("basket_id").notNull().references(() => basketTemplates.id),
+  category: categoryEnum("category").notNull(),
+  quantity: integer("quantity").notNull(),
+  unit: unitEnum("unit").notNull(),
+  isOptional: boolean("is_optional").default(false),
+  alternatives: text("alternatives").array(), // Alternative product names
+  nutritionBenefit: text("nutrition_benefit"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Customer basket orders
+export const customerBaskets = pgTable("customer_baskets", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  customerId: varchar("customer_id").notNull().references(() => users.id),
+  basketTemplateId: varchar("basket_template_id").references(() => basketTemplates.id),
+  name: varchar("name").notNull(),
+  totalAmount: decimal("total_amount", { precision: 10, scale: 2 }),
+  deliveryFrequency: varchar("delivery_frequency"), // weekly, biweekly, monthly
+  nextDelivery: timestamp("next_delivery"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Nutrition information
+export const nutritionInfo = pgTable("nutrition_info", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  productId: varchar("product_id").notNull().references(() => products.id),
+  calories: integer("calories"), // per 100g
+  protein: decimal("protein", { precision: 5, scale: 2 }), // grams per 100g
+  carbs: decimal("carbs", { precision: 5, scale: 2 }),
+  fiber: decimal("fiber", { precision: 5, scale: 2 }),
+  fat: decimal("fat", { precision: 5, scale: 2 }),
+  sugar: decimal("sugar", { precision: 5, scale: 2 }),
+  sodium: decimal("sodium", { precision: 5, scale: 2 }),
+  vitamins: jsonb("vitamins"), // {vitamin_c: 45, vitamin_a: 30}
+  minerals: jsonb("minerals"), // {iron: 2.5, calcium: 150}
+  healthBenefits: text("health_benefits").array(),
+  allergens: text("allergens").array(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Recipe suggestions
+export const recipes = pgTable("recipes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").notNull(),
+  description: text("description"),
+  ingredients: jsonb("ingredients").notNull(), // [{product_id, quantity, unit}]
+  instructions: text("instructions").array().notNull(),
+  prepTime: integer("prep_time"), // minutes
+  cookTime: integer("cook_time"), // minutes
+  servings: integer("servings"),
+  difficulty: varchar("difficulty"), // easy, medium, hard
+  imageUrl: text("image_url"),
+  nutritionPer100g: jsonb("nutrition_per_100g"),
+  tags: text("tags").array(), // vegetarian, vegan, gluten_free
+  authorId: varchar("author_id").references(() => users.id),
+  rating: decimal("rating", { precision: 3, scale: 2 }).default("0"),
+  views: integer("views").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// ============= SOCIAL & COMMUNITY FEATURES =============
+
+// Adopt a farm program
+export const farmAdoptions = pgTable("farm_adoptions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  customerId: varchar("customer_id").notNull().references(() => users.id),
+  farmerId: varchar("farmer_id").notNull().references(() => farmers.id),
+  adoptionType: varchar("adoption_type").notNull(), // tree, plot, animal, greenhouse
+  adoptionName: varchar("adoption_name"), // Custom name given by adopter
+  monthlyFee: decimal("monthly_fee", { precision: 10, scale: 2 }).notNull(),
+  adoptionDuration: integer("adoption_duration"), // months
+  status: varchar("status").default("active"), // active, paused, completed
+  benefits: text("benefits").array(), // Regular updates, exclusive products
+  adoptionStartDate: date("adoption_start_date").notNull(),
+  adoptionEndDate: date("adoption_end_date"),
+  totalPaid: decimal("total_paid", { precision: 10, scale: 2 }).default("0"),
+  lastUpdateSent: timestamp("last_update_sent"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Farm adoption updates
+export const adoptionUpdates = pgTable("adoption_updates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  adoptionId: varchar("adoption_id").notNull().references(() => farmAdoptions.id),
+  title: varchar("title").notNull(),
+  content: text("content").notNull(),
+  photos: text("photos").array(),
+  updateType: varchar("update_type").notNull(), // growth, harvest, maintenance
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// ============= AI DEMAND PREDICTION =============
+
+// Demand prediction data
+export const demandPredictions = pgTable("demand_predictions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  productId: varchar("product_id").notNull().references(() => products.id),
+  location: varchar("location").notNull(),
+  predictedDemand: integer("predicted_demand").notNull(),
+  confidence: decimal("confidence", { precision: 5, scale: 2 }), // 0-100%
+  factors: jsonb("factors"), // {weather: 0.3, season: 0.4, events: 0.3}
+  predictionDate: date("prediction_date").notNull(),
+  actualDemand: integer("actual_demand"), // Filled after the date
+  accuracy: decimal("accuracy", { precision: 5, scale: 2 }), // Calculated accuracy
+  modelVersion: varchar("model_version"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Market trends tracking
+export const marketTrends = pgTable("market_trends", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  category: categoryEnum("category").notNull(),
+  location: varchar("location").notNull(),
+  trendType: varchar("trend_type").notNull(), // price, demand, supply
+  trendValue: decimal("trend_value", { precision: 10, scale: 2 }),
+  changePercent: decimal("change_percent", { precision: 5, scale: 2 }),
+  period: varchar("period").notNull(), // daily, weekly, monthly
+  periodDate: date("period_date").notNull(),
+  influencingFactors: text("influencing_factors").array(),
+  marketInsights: text("market_insights"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// ============= BLOCKCHAIN TRACEABILITY =============
+
+// Blockchain records for product traceability
+export const blockchainRecords = pgTable("blockchain_records", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  productId: varchar("product_id").notNull().references(() => products.id),
+  transactionHash: varchar("transaction_hash").notNull(),
+  blockNumber: varchar("block_number"),
+  contractAddress: varchar("contract_address"),
+  eventType: varchar("event_type").notNull(), // planted, harvested, shipped, delivered
+  eventData: jsonb("event_data").notNull(),
+  timestamp: timestamp("timestamp").notNull(),
+  verificationStatus: varchar("verification_status").default("pending"),
+  gasUsed: varchar("gas_used"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// ============= IOT SENSOR INTEGRATION =============
+
+// IoT sensors on farms
+export const iotSensors = pgTable("iot_sensors", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  farmerId: varchar("farmer_id").notNull().references(() => farmers.id),
+  sensorType: varchar("sensor_type").notNull(), // temperature, humidity, soil_moisture, ph
+  deviceId: varchar("device_id").notNull().unique(),
+  location: varchar("location").notNull(),
+  latitude: decimal("latitude", { precision: 10, scale: 7 }),
+  longitude: decimal("longitude", { precision: 10, scale: 7 }),
+  isActive: boolean("is_active").default(true),
+  batteryLevel: integer("battery_level"), // 0-100%
+  lastReading: timestamp("last_reading"),
+  calibrationDate: timestamp("calibration_date"),
+  firmware: varchar("firmware"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// IoT sensor readings
+export const sensorReadings = pgTable("sensor_readings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sensorId: varchar("sensor_id").notNull().references(() => iotSensors.id),
+  value: decimal("value", { precision: 10, scale: 3 }).notNull(),
+  unit: varchar("unit").notNull(),
+  quality: varchar("quality").default("good"), // good, poor, error
+  alerts: text("alerts").array(), // Threshold alerts
+  recordedAt: timestamp("recorded_at").defaultNow(),
+});
+
+// ============= EXPANDED TYPES =============
+
+export type EscrowTransaction = typeof escrowTransactions.$inferSelect;
+export type InsertEscrowTransaction = typeof escrowTransactions.$inferInsert;
+export type DeliveryRider = typeof deliveryRiders.$inferSelect;
+export type InsertDeliveryRider = typeof deliveryRiders.$inferInsert;
+export type DeliveryAssignment = typeof deliveryAssignments.$inferSelect;
+export type InsertDeliveryAssignment = typeof deliveryAssignments.$inferInsert;
+export type FarmCertification = typeof farmCertifications.$inferSelect;
+export type ProductQuality = typeof productQuality.$inferSelect;
+export type BasketTemplate = typeof basketTemplates.$inferSelect;
+export type CustomerBasket = typeof customerBaskets.$inferSelect;
+export type NutritionInfo = typeof nutritionInfo.$inferSelect;
+export type Recipe = typeof recipes.$inferSelect;
+export type FarmAdoption = typeof farmAdoptions.$inferSelect;
+export type DemandPrediction = typeof demandPredictions.$inferSelect;
+export type BlockchainRecord = typeof blockchainRecords.$inferSelect;
+export type IoTSensor = typeof iotSensors.$inferSelect;
+export type SensorReading = typeof sensorReadings.$inferSelect;

@@ -2,6 +2,7 @@ import express, { type Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
+import { escrowService } from "./escrowService";
 import { setupGPSTracking, updateDriverLocation, updateDeliveryStatus, calculateETA } from "./gpsTracking";
 import { 
   insertFarmerSchema,
@@ -679,6 +680,163 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error creating delivery assignment:", error);
       res.status(500).json({ message: "Failed to create delivery assignment" });
+    }
+  });
+
+  // ============= ESCROW PAYMENT ENDPOINTS =============
+  
+  // Initiate escrow payment for an order
+  app.post("/api/escrow/initiate", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any)?.claims?.sub;
+      const { orderId, farmerId, amount, provider, phoneNumber } = req.body;
+
+      const result = await escrowService.initiateEscrowTransaction({
+        orderId,
+        customerId: userId,
+        farmerId,
+        amount: parseFloat(amount),
+        provider,
+        customerPhoneNumber: phoneNumber,
+      });
+
+      if (result.success) {
+        res.json(result);
+      } else {
+        res.status(400).json(result);
+      }
+    } catch (error) {
+      console.error("Error initiating escrow payment:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Internal server error" 
+      });
+    }
+  });
+
+  // Confirm mobile money payment
+  app.post("/api/escrow/confirm-payment", isAuthenticated, async (req, res) => {
+    try {
+      const { transactionId, paymentProof } = req.body;
+
+      const result = await escrowService.confirmPaymentAndHoldFunds(
+        transactionId,
+        paymentProof
+      );
+
+      if (result.success) {
+        res.json(result);
+      } else {
+        res.status(400).json(result);
+      }
+    } catch (error) {
+      console.error("Error confirming payment:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Internal server error" 
+      });
+    }
+  });
+
+  // Release funds to farmer (typically called after delivery confirmation)
+  app.post("/api/escrow/release-funds", isAuthenticated, async (req, res) => {
+    try {
+      const { transactionId, deliveryConfirmed, confirmationMethod, confirmationProof } = req.body;
+
+      const result = await escrowService.releaseFundsToFarmer(transactionId, {
+        deliveryConfirmed,
+        confirmationMethod,
+        confirmationProof,
+      });
+
+      if (result.success) {
+        res.json(result);
+      } else {
+        res.status(400).json(result);
+      }
+    } catch (error) {
+      console.error("Error releasing funds:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Internal server error" 
+      });
+    }
+  });
+
+  // Get escrow transaction status
+  app.get("/api/escrow/status/:transactionId", isAuthenticated, async (req, res) => {
+    try {
+      const { transactionId } = req.params;
+      const result = await escrowService.getTransactionStatus(transactionId);
+
+      if (result.success) {
+        res.json(result);
+      } else {
+        res.status(404).json(result);
+      }
+    } catch (error) {
+      console.error("Error getting transaction status:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Internal server error" 
+      });
+    }
+  });
+
+  // ============= NEW ECOSYSTEM ENDPOINTS =============
+  
+  // Register as delivery rider
+  app.post("/api/riders/register", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any)?.claims?.sub;
+      const riderData = {
+        userId,
+        ...req.body,
+        status: 'pending',
+      };
+
+      const rider = await storage.createDeliveryRider(riderData);
+      res.json({ success: true, rider });
+    } catch (error) {
+      console.error("Error registering rider:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Failed to register rider" 
+      });
+    }
+  });
+
+  // Get basket templates
+  app.get("/api/baskets/templates", async (req, res) => {
+    try {
+      const templates = await storage.getBasketTemplates();
+      res.json({ success: true, templates });
+    } catch (error) {
+      console.error("Error getting basket templates:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Failed to get basket templates" 
+      });
+    }
+  });
+
+  // Create farm adoption
+  app.post("/api/adoptions/create", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any)?.claims?.sub;
+      const adoptionData = {
+        customerId: userId,
+        ...req.body,
+      };
+
+      const adoption = await storage.createFarmAdoption(adoptionData);
+      res.json({ success: true, adoption });
+    } catch (error) {
+      console.error("Error creating farm adoption:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Failed to create farm adoption" 
+      });
     }
   });
 

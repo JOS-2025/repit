@@ -9,6 +9,21 @@ import {
   deliveryDrivers,
   deliveryTracking,
   locationHistory,
+  escrowTransactions,
+  deliveryRiders,
+  deliveryAssignments,
+  farmCertifications,
+  productQuality,
+  basketTemplates,
+  customerBaskets,
+  nutritionInfo,
+  recipes,
+  farmAdoptions,
+  demandPredictions,
+  marketTrends,
+  blockchainRecords,
+  iotSensors,
+  sensorReadings,
   type User,
   type UpsertUser,
   type InsertFarmer,
@@ -89,6 +104,53 @@ export interface IStorage {
   getSubscriptionOrders(userId: string): Promise<any[]>;
   updateSubscriptionOrder(id: string, data: any): Promise<any>;
   deleteSubscriptionOrder(id: string): Promise<void>;
+  
+  // Escrow payment operations
+  createEscrowTransaction(transaction: any): Promise<any>;
+  getEscrowTransaction(transactionId: string): Promise<any>;
+  updateEscrowStatus(transactionId: string, status: string, data?: any): Promise<void>;
+  getEscrowTransactionsByOrder(orderId: string): Promise<any[]>;
+  
+  // Delivery rider operations
+  createDeliveryRider(rider: any): Promise<any>;
+  getDeliveryRider(riderId: string): Promise<any>;
+  getAvailableRiders(location: string): Promise<any[]>;
+  updateRiderStatus(riderId: string, status: string): Promise<void>;
+  
+  // Quality assurance operations
+  addProductQuality(quality: any): Promise<any>;
+  getProductQuality(productId: string): Promise<any>;
+  addFarmCertification(certification: any): Promise<any>;
+  getFarmCertifications(farmerId: string): Promise<any[]>;
+  
+  // Basket operations
+  createBasketTemplate(basket: any): Promise<any>;
+  getBasketTemplates(): Promise<any[]>;
+  createCustomerBasket(basket: any): Promise<any>;
+  getCustomerBaskets(customerId: string): Promise<any[]>;
+  
+  // Nutrition and recipe operations
+  addNutritionInfo(nutrition: any): Promise<any>;
+  getNutritionInfo(productId: string): Promise<any>;
+  createRecipe(recipe: any): Promise<any>;
+  getRecipes(filters?: any): Promise<any[]>;
+  
+  // Farm adoption operations
+  createFarmAdoption(adoption: any): Promise<any>;
+  getFarmAdoptions(customerId: string): Promise<any[]>;
+  updateFarmAdoption(adoptionId: string, data: any): Promise<any>;
+  
+  // AI and analytics operations
+  saveDemandPrediction(prediction: any): Promise<any>;
+  getDemandPredictions(productId: string, location: string): Promise<any[]>;
+  saveMarketTrend(trend: any): Promise<any>;
+  getMarketTrends(category: string, location: string): Promise<any[]>;
+  
+  // Blockchain and IoT operations
+  saveBlockchainRecord(record: any): Promise<any>;
+  getBlockchainRecords(productId: string): Promise<any[]>;
+  createIoTSensor(sensor: any): Promise<any>;
+  saveSensorReading(reading: any): Promise<any>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -585,6 +647,298 @@ export class DatabaseStorage implements IStorage {
 
   async deleteSubscriptionOrder(id: string): Promise<void> {
     // Will implement later
+  }
+  
+  // ============= ESCROW PAYMENT OPERATIONS =============
+  
+  async createEscrowTransaction(transaction: any): Promise<any> {
+    const [newTransaction] = await db
+      .insert(escrowTransactions)
+      .values(transaction)
+      .returning();
+    return newTransaction;
+  }
+  
+  async getEscrowTransaction(transactionId: string): Promise<any> {
+    const [transaction] = await db
+      .select()
+      .from(escrowTransactions)
+      .where(eq(escrowTransactions.id, transactionId));
+    return transaction;
+  }
+  
+  async updateEscrowStatus(transactionId: string, status: string, data?: any): Promise<void> {
+    const updateData: any = { 
+      status, 
+      updatedAt: new Date() 
+    };
+    
+    if (status === 'held') updateData.heldAt = new Date();
+    if (status === 'released') updateData.releasedAt = new Date();
+    if (status === 'refunded') updateData.refundedAt = new Date();
+    
+    if (data) Object.assign(updateData, data);
+    
+    await db
+      .update(escrowTransactions)
+      .set(updateData)
+      .where(eq(escrowTransactions.id, transactionId));
+  }
+  
+  async getEscrowTransactionsByOrder(orderId: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(escrowTransactions)
+      .where(eq(escrowTransactions.orderId, orderId))
+      .orderBy(desc(escrowTransactions.createdAt));
+  }
+  
+  // ============= DELIVERY RIDER OPERATIONS =============
+  
+  async createDeliveryRider(rider: any): Promise<any> {
+    const [newRider] = await db
+      .insert(deliveryRiders)
+      .values(rider)
+      .returning();
+    return newRider;
+  }
+  
+  async getDeliveryRider(riderId: string): Promise<any> {
+    const [rider] = await db
+      .select()
+      .from(deliveryRiders)
+      .innerJoin(users, eq(deliveryRiders.userId, users.id))
+      .where(eq(deliveryRiders.id, riderId));
+      
+    if (!rider) return undefined;
+    
+    return {
+      ...rider.delivery_riders,
+      user: rider.users
+    };
+  }
+  
+  async getAvailableRiders(location: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(deliveryRiders)
+      .innerJoin(users, eq(deliveryRiders.userId, users.id))
+      .where(and(
+        eq(deliveryRiders.isOnline, true),
+        eq(deliveryRiders.status, 'active')
+      ))
+      .orderBy(asc(deliveryRiders.rating));
+  }
+  
+  async updateRiderStatus(riderId: string, status: string): Promise<void> {
+    await db
+      .update(deliveryRiders)
+      .set({ status: status as any, updatedAt: new Date() })
+      .where(eq(deliveryRiders.id, riderId));
+  }
+  
+  // ============= QUALITY ASSURANCE OPERATIONS =============
+  
+  async addProductQuality(quality: any): Promise<any> {
+    const [newQuality] = await db
+      .insert(productQuality)
+      .values(quality)
+      .returning();
+    return newQuality;
+  }
+  
+  async getProductQuality(productId: string): Promise<any> {
+    const [quality] = await db
+      .select()
+      .from(productQuality)
+      .where(eq(productQuality.productId, productId));
+    return quality;
+  }
+  
+  async addFarmCertification(certification: any): Promise<any> {
+    const [newCertification] = await db
+      .insert(farmCertifications)
+      .values(certification)
+      .returning();
+    return newCertification;
+  }
+  
+  async getFarmCertifications(farmerId: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(farmCertifications)
+      .where(eq(farmCertifications.farmerId, farmerId))
+      .orderBy(desc(farmCertifications.createdAt));
+  }
+  
+  // ============= BASKET OPERATIONS =============
+  
+  async createBasketTemplate(basket: any): Promise<any> {
+    const [newBasket] = await db
+      .insert(basketTemplates)
+      .values(basket)
+      .returning();
+    return newBasket;
+  }
+  
+  async getBasketTemplates(): Promise<any[]> {
+    return await db
+      .select()
+      .from(basketTemplates)
+      .where(eq(basketTemplates.isActive, true))
+      .orderBy(desc(basketTemplates.createdAt));
+  }
+  
+  async createCustomerBasket(basket: any): Promise<any> {
+    const [newBasket] = await db
+      .insert(customerBaskets)
+      .values(basket)
+      .returning();
+    return newBasket;
+  }
+  
+  async getCustomerBaskets(customerId: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(customerBaskets)
+      .where(eq(customerBaskets.customerId, customerId))
+      .orderBy(desc(customerBaskets.createdAt));
+  }
+  
+  // ============= NUTRITION AND RECIPE OPERATIONS =============
+  
+  async addNutritionInfo(nutrition: any): Promise<any> {
+    const [newNutrition] = await db
+      .insert(nutritionInfo)
+      .values(nutrition)
+      .returning();
+    return newNutrition;
+  }
+  
+  async getNutritionInfo(productId: string): Promise<any> {
+    const [nutrition] = await db
+      .select()
+      .from(nutritionInfo)
+      .where(eq(nutritionInfo.productId, productId));
+    return nutrition;
+  }
+  
+  async createRecipe(recipe: any): Promise<any> {
+    const [newRecipe] = await db
+      .insert(recipes)
+      .values(recipe)
+      .returning();
+    return newRecipe;
+  }
+  
+  async getRecipes(filters?: any): Promise<any[]> {
+    return await db
+      .select()
+      .from(recipes)
+      .orderBy(desc(recipes.rating), desc(recipes.views));
+  }
+  
+  // ============= FARM ADOPTION OPERATIONS =============
+  
+  async createFarmAdoption(adoption: any): Promise<any> {
+    const [newAdoption] = await db
+      .insert(farmAdoptions)
+      .values(adoption)
+      .returning();
+    return newAdoption;
+  }
+  
+  async getFarmAdoptions(customerId: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(farmAdoptions)
+      .innerJoin(farmers, eq(farmAdoptions.farmerId, farmers.id))
+      .innerJoin(users, eq(farmers.userId, users.id))
+      .where(eq(farmAdoptions.customerId, customerId))
+      .orderBy(desc(farmAdoptions.createdAt));
+  }
+  
+  async updateFarmAdoption(adoptionId: string, data: any): Promise<any> {
+    const [updated] = await db
+      .update(farmAdoptions)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(farmAdoptions.id, adoptionId))
+      .returning();
+    return updated;
+  }
+  
+  // ============= AI AND ANALYTICS OPERATIONS =============
+  
+  async saveDemandPrediction(prediction: any): Promise<any> {
+    const [newPrediction] = await db
+      .insert(demandPredictions)
+      .values(prediction)
+      .returning();
+    return newPrediction;
+  }
+  
+  async getDemandPredictions(productId: string, location: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(demandPredictions)
+      .where(and(
+        eq(demandPredictions.productId, productId),
+        eq(demandPredictions.location, location)
+      ))
+      .orderBy(desc(demandPredictions.predictionDate));
+  }
+  
+  async saveMarketTrend(trend: any): Promise<any> {
+    const [newTrend] = await db
+      .insert(marketTrends)
+      .values(trend)
+      .returning();
+    return newTrend;
+  }
+  
+  async getMarketTrends(category: string, location: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(marketTrends)
+      .where(and(
+        eq(marketTrends.category, category as any),
+        eq(marketTrends.location, location)
+      ))
+      .orderBy(desc(marketTrends.periodDate));
+  }
+  
+  // ============= BLOCKCHAIN AND IOT OPERATIONS =============
+  
+  async saveBlockchainRecord(record: any): Promise<any> {
+    const [newRecord] = await db
+      .insert(blockchainRecords)
+      .values(record)
+      .returning();
+    return newRecord;
+  }
+  
+  async getBlockchainRecords(productId: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(blockchainRecords)
+      .where(eq(blockchainRecords.productId, productId))
+      .orderBy(desc(blockchainRecords.timestamp));
+  }
+  
+  async createIoTSensor(sensor: any): Promise<any> {
+    const [newSensor] = await db
+      .insert(iotSensors)
+      .values(sensor)
+      .returning();
+    return newSensor;
+  }
+  
+  async saveSensorReading(reading: any): Promise<any> {
+    const [newReading] = await db
+      .insert(sensorReadings)
+      .values(reading)
+      .returning();
+    return newReading;
   }
 }
 

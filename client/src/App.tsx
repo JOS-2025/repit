@@ -21,6 +21,7 @@ import FarmerAnalytics from "@/pages/farmer-analytics";
 import Wishlist from "@/pages/wishlist";
 import Community from "@/pages/community";
 import AdminDashboard from "@/pages/admin";
+import { EscrowDemo } from "@/pages/EscrowDemo";
 import ChatSupport from "@/components/chat-support";
 
 function Router() {
@@ -35,6 +36,7 @@ function Router() {
           <Route path="/help" component={HelpCenter} />
           <Route path="/terms" component={TermsConditions} />
           <Route path="/privacy" component={PrivacyPolicy} />
+          <Route path="/escrow-demo" component={EscrowDemo} />
         </>
       ) : (
         <>
@@ -52,6 +54,7 @@ function Router() {
           <Route path="/wishlist" component={Wishlist} />
           <Route path="/community" component={Community} />
           <Route path="/admin" component={AdminDashboard} />
+          <Route path="/escrow-demo" component={EscrowDemo} />
         </>
       )}
       
