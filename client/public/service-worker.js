@@ -22,12 +22,23 @@ self.addEventListener('install', (event) => {
       })
       .then(() => {
         console.log('[Service Worker] Essential files cached');
-        return self.skipWaiting();
+        // Don't skip waiting automatically - let the user decide
+        // return self.skipWaiting();
       })
       .catch((error) => {
         console.error('[Service Worker] Failed to cache essential files:', error);
       })
   );
+});
+
+// Handle skip waiting message
+self.addEventListener('message', (event) => {
+  console.log('[Service Worker] Received message:', event.data);
+  
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    console.log('[Service Worker] Skipping waiting...');
+    self.skipWaiting();
+  }
 });
 
 // Activate event - clean up old caches
