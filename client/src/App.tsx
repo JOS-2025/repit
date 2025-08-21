@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
+import { LanguageProvider } from "@/context/language-context";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 import Home from "@/pages/home";
@@ -13,6 +14,11 @@ import OrderTracking from "@/pages/order-tracking";
 import HelpCenter from "@/pages/help-center";
 import TermsConditions from "@/pages/terms-conditions";
 import PrivacyPolicy from "@/pages/privacy-policy";
+import Checkout from "@/pages/checkout";
+import FarmerAnalytics from "@/pages/farmer-analytics";
+import Wishlist from "@/pages/wishlist";
+import Community from "@/pages/community";
+import ChatSupport from "@/components/chat-support";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -35,8 +41,16 @@ function Router() {
           <Route path="/help" component={HelpCenter} />
           <Route path="/terms" component={TermsConditions} />
           <Route path="/privacy" component={PrivacyPolicy} />
+          <Route path="/checkout" component={Checkout} />
+          <Route path="/farmer-analytics" component={FarmerAnalytics} />
+          <Route path="/wishlist" component={Wishlist} />
+          <Route path="/community" component={Community} />
         </>
       )}
+      
+      {/* Global chat support - available on all pages when authenticated */}
+      {isAuthenticated && <ChatSupport />}
+      
       <Route component={NotFound} />
     </Switch>
   );
@@ -45,10 +59,12 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Router />
-      </TooltipProvider>
+      <LanguageProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Router />
+        </TooltipProvider>
+      </LanguageProvider>
     </QueryClientProvider>
   );
 }

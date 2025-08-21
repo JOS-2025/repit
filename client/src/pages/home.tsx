@@ -6,6 +6,8 @@ import SimpleOrderForm from "@/components/simple-order-form";
 import { useQuery } from "@tanstack/react-query";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { useAddToCart } from '@/components/shopping-cart';
 
 export default function Home() {
   const { toast } = useToast();

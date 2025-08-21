@@ -11,6 +11,7 @@ import {
   decimal,
   boolean,
   pgEnum,
+  date,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -274,6 +275,124 @@ export type InsertCartItem = z.infer<typeof insertCartItemSchema>;
 export type CartItem = typeof cartItems.$inferSelect;
 export type InsertSimpleOrder = z.infer<typeof insertSimpleOrderSchema>;
 export type SimpleOrder = typeof simpleOrders.$inferSelect;
+
+// Reviews table
+export const reviews = pgTable("reviews", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  productId: varchar("product_id").references(() => products.id),
+  farmerId: varchar("farmer_id").references(() => farmers.id),
+  rating: integer("rating").notNull(), // 1-5 stars
+  comment: text("comment"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Favorites/Wishlist table
+export const favorites = pgTable("favorites", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  productId: varchar("product_id").references(() => products.id),
+  farmerId: varchar("farmer_id").references(() => farmers.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Chat messages table
+export const chatMessages = pgTable("chat_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  senderId: varchar("sender_id").references(() => users.id).notNull(),
+  receiverId: varchar("receiver_id").references(() => users.id),
+  orderId: varchar("order_id").references(() => simpleOrders.id),
+  message: text("message").notNull(),
+  messageType: varchar("message_type").default("text").notNull(), // text, image, system
+  isSupport: boolean("is_support").default(false).notNull(),
+  readAt: timestamp("read_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Notifications table
+export const notifications = pgTable("notifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  title: varchar("title").notNull(),
+  message: text("message").notNull(),
+  type: varchar("type").notNull(), // order, promotion, system, chat
+  orderId: varchar("order_id").references(() => simpleOrders.id),
+  isRead: boolean("is_read").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Discounts/Offers table
+export const discounts = pgTable("discounts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  farmerId: varchar("farmer_id").references(() => farmers.id).notNull(),
+  productId: varchar("product_id").references(() => products.id),
+  discountType: varchar("discount_type").notNull(), // bulk, loyalty, seasonal
+  minQuantity: integer("min_quantity"),
+  discountPercent: decimal("discount_percent", { precision: 5, scale: 2 }),
+  maxDiscount: decimal("max_discount", { precision: 10, scale: 2 }),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Order tracking updates
+export const orderTracking = pgTable("order_tracking", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orderId: varchar("order_id").references(() => simpleOrders.id).notNull(),
+  status: varchar("status").notNull(), // placed, confirmed, preparing, in_transit, delivered, cancelled
+  location: varchar("location"),
+  notes: text("notes"),
+  updatedBy: varchar("updated_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Community posts (recipes, tips, stories)
+export const communityPosts = pgTable("community_posts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  authorId: varchar("author_id").references(() => users.id).notNull(),
+  title: varchar("title").notNull(),
+  content: text("content").notNull(),
+  category: varchar("category").notNull(), // recipe, storage_tip, farm_story
+  tags: text("tags").array(), // searchable tags
+  images: text("images").array(), // image URLs
+  likes: integer("likes").default(0).notNull(),
+  views: integer("views").default(0).notNull(),
+  isPublished: boolean("is_published").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Analytics data for farmers
+export const salesAnalytics = pgTable("sales_analytics", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  farmerId: varchar("farmer_id").references(() => farmers.id).notNull(),
+  productId: varchar("product_id").references(() => products.id),
+  period: varchar("period").notNull(), // daily, weekly, monthly
+  periodDate: date("period_date").notNull(),
+  totalSales: decimal("total_sales", { precision: 10, scale: 2 }).default("0").notNull(),
+  totalOrders: integer("total_orders").default(0).notNull(),
+  totalQuantity: integer("total_quantity").default(0).notNull(),
+  avgOrderValue: decimal("avg_order_value", { precision: 10, scale: 2 }).default("0").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// User preferences for language support
+export const userPreferences = pgTable("user_preferences", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id).notNull().unique(),
+  language: varchar("language").default("en").notNull(), // en, sw (English, Swahili)
+  notificationSettings: jsonb("notification_settings").default({
+    email: true,
+    push: true,
+    sms: false,
+    orderUpdates: true,
+    promotions: true
+  }).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
 
 // Extended types with relations
 export type ProductWithFarmer = Product & {

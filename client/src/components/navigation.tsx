@@ -3,6 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import ShoppingCart from "@/components/shopping-cart";
+import LanguageToggle from "@/components/language-toggle";
+import { useLanguage } from "@/context/language-context";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,16 +17,8 @@ import {
 export default function Navigation() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const [location] = useLocation();
+  const { t } = useLanguage();
 
-  const { data: cartItems = [] } = useQuery({
-    queryKey: ["/api/cart"],
-    enabled: isAuthenticated && !!user,
-    retry: false,
-  });
-
-  const cartItemsCount = cartItems.reduce((total: number, item: any) => 
-    total + item.quantity, 0
-  );
 
   return (
     <nav className="bg-white shadow-sm border-b border-gray-100 sticky top-0 z-50">
@@ -109,22 +104,9 @@ export default function Navigation() {
                   </Link>
                 )}
                 
-                <div className="relative">
-                  <button 
-                    className="text-gray-500 hover:text-gray-700 p-2"
-                    data-testid="button-cart"
-                  >
-                    <i className="fas fa-shopping-cart text-xl"></i>
-                    {cartItemsCount > 0 && (
-                      <Badge 
-                        className="absolute -top-1 -right-1 bg-orange-500 text-white text-xs h-5 w-5 rounded-full flex items-center justify-center p-0 min-w-5"
-                        data-testid="badge-cart-count"
-                      >
-                        {cartItemsCount}
-                      </Badge>
-                    )}
-                  </button>
-                </div>
+                <ShoppingCart onCheckout={() => window.location.href = '/checkout'} />
+                
+                <LanguageToggle />
 
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
