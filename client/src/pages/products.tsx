@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, Filter, Leaf, Heart, MapPin, User, Star } from "lucide-react";
+import { VoiceSearchButton } from "@/components/voice-search-button";
 
 export default function Products() {
   const [selectedCategory, setSelectedCategory] = useState<string>("");
@@ -102,20 +103,27 @@ export default function Products() {
               <div className="space-y-4">
                 {/* Search Input with Type Selection */}
                 <div className="flex flex-col lg:flex-row gap-4">
-                  <div className="flex-1 relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                    <Input
-                      type="text"
-                      placeholder={
-                        searchType === "product" ? "Search products..." :
-                        searchType === "farmer" ? "Search farmers..." :
-                        searchType === "location" ? "Search locations..." :
-                        "Search products, farmers, locations..."
-                      }
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-10 border-green-200 focus:border-green-500"
-                      data-testid="input-search-products"
+                  <div className="flex-1 flex gap-2">
+                    <div className="flex-1 relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <Input
+                        type="text"
+                        placeholder={
+                          searchType === "product" ? "Search products..." :
+                          searchType === "farmer" ? "Search farmers..." :
+                          searchType === "location" ? "Search locations..." :
+                          "Search products, farmers, locations..."
+                        }
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="pl-10 border-green-200 focus:border-green-500"
+                        data-testid="input-search-products"
+                      />
+                    </div>
+                    <VoiceSearchButton 
+                      onVoiceResult={(transcript) => setSearchQuery(transcript)}
+                      size="default"
+                      className="shrink-0"
                     />
                   </div>
                   
