@@ -1,0 +1,106 @@
+name: Build FarmCart Android APK
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Setup Java JDK
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+        
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+      
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Build web assets
+      run: npm run build
+      
+    - name: Install Capacitor CLI
+      run: npm install -g @capacitor/cli
+      
+    - name: Sync Capacitor
+      run: npx cap sync android
+      
+    - name: Build Android Debug APK
+      working-directory: ./android
+      run: ./gradlew assembleDebug
+      
+    - name: Build Android Release APK
+      working-directory: ./android
+      run: ./gradlew assembleRelease
+      
+    - name: Sign APK (if keystore available)
+      working-directory: ./android
+      run: |
+        if [ -f app/farmcart-keystore.jks ]; then
+          echo "Signing APK with provided keystore..."
+          ./gradlew assembleRelease
+        else
+          echo "No keystore found, using debug signing"
+        fi
+      
+    - name: Upload Debug APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: farmcart-debug-apk
+        path: android/app/build/outputs/apk/debug/app-debug.apk
+        
+    - name: Upload Release APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: farmcart-release-apk
+        path: android/app/build/outputs/apk/release/app-release.apk
+        
+    - name: Create Release
+      if: github.ref == 'refs/heads/main'
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: v1.0.${{ github.run_number }}
+        name: FarmCart APK v1.0.${{ github.run_number }}
+        body: |
+          🚀 **FarmCart Android APK Build**
+          
+          **What's New:**
+          - Farm-to-table marketplace functionality
+          - PWA features with offline support
+          - Push notifications and background sync
+          - Escrow payment system
+          - Real-time order tracking
+          
+          **Download:**
+          - `farmcart-debug.apk` - For testing and development
+          - `farmcart-release.apk` - For production use
+          
+          **Installation:**
+          1. Download the APK file
+          2. Enable "Install from unknown sources" in Android settings
+          3. Install the APK
+          4. Launch FarmCart!
+        files: |
+          android/app/build/outputs/apk/debug/app-debug.apk
+          android/app/build/outputs/apk/release/app-release.apk
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

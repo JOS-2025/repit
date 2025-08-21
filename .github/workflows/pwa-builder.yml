@@ -1,0 +1,72 @@
+name: PWA Builder Android Package
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  build-pwa:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Build PWA
+      run: npm run build
+      
+    - name: Install PWA Builder CLI
+      run: npm install -g @pwa-builder/cli
+      
+    - name: Create Android package with PWA Builder
+      run: |
+        # Extract the URL from environment or use localhost for demo
+        PWA_URL="${{ vars.PWA_URL || 'https://farmcart-demo.netlify.app' }}"
+        
+        pwa-builder create android \
+          --url "$PWA_URL" \
+          --name "FarmCart" \
+          --package-id "com.farmcart.app" \
+          --output-directory "./pwa-android" \
+          --manifest-url "$PWA_URL/manifest.json"
+      
+    - name: Upload PWA Builder Android Package
+      uses: actions/upload-artifact@v4
+      with:
+        name: farmcart-pwa-android
+        path: ./pwa-android/
+        
+    - name: Create PWA Release
+      if: github.ref == 'refs/heads/main'
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: pwa-v1.0.${{ github.run_number }}
+        name: FarmCart PWA Android v1.0.${{ github.run_number }}
+        body: |
+          📱 **FarmCart PWA Android Package**
+          
+          Generated using PWA Builder for instant Android app creation.
+          
+          **Features:**
+          - Native Android app experience
+          - Automatic PWA to Android conversion
+          - App Store ready package
+          - Optimized for Android devices
+          
+          **Installation:**
+          Download the generated Android package and follow PWA Builder instructions.
+        files: ./pwa-android/*
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

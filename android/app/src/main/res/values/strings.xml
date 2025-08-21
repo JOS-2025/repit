@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">FarmCart</string>
+    <string name="title_activity_main">FarmCart</string>
+    <string name="package_name">com.farmcart.app</string>
+    <string name="custom_url_scheme">com.farmcart.app</string>
+</resources>
