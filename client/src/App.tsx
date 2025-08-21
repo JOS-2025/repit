@@ -12,6 +12,7 @@ import Products from "@/pages/products";
 import OrderTracking from "@/pages/order-tracking";
 import HelpCenter from "@/pages/help-center";
 import TermsConditions from "@/pages/terms-conditions";
+import PrivacyPolicy from "@/pages/privacy-policy";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -23,6 +24,7 @@ function Router() {
           <Route path="/" component={Landing} />
           <Route path="/help" component={HelpCenter} />
           <Route path="/terms" component={TermsConditions} />
+          <Route path="/privacy" component={PrivacyPolicy} />
         </>
       ) : (
         <>
@@ -32,6 +34,7 @@ function Router() {
           <Route path="/orders" component={OrderTracking} />
           <Route path="/help" component={HelpCenter} />
           <Route path="/terms" component={TermsConditions} />
+          <Route path="/privacy" component={PrivacyPolicy} />
         </>
       )}
       <Route component={NotFound} />

@@ -143,8 +143,11 @@ export default function TermsConditions() {
                     12. Privacy
                   </h2>
                   <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
-                    Users' personal information is collected and used according to our Privacy Policy. 
-                    We are committed to protecting your privacy and personal data.
+                    Users' personal information is collected and used according to our{" "}
+                    <a href="/privacy" className="text-green-600 dark:text-green-400 hover:underline font-semibold">
+                      Privacy Policy
+                    </a>
+                    . We are committed to protecting your privacy and personal data as detailed in our comprehensive privacy policy.
                   </p>
                 </section>
 
