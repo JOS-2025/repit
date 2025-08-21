@@ -113,6 +113,171 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Price comparison endpoints
+  app.get('/api/price-comparison/:productName/:category', async (req, res) => {
+    try {
+      const { productName, category } = req.params;
+      const priceComparisons = await storage.getPriceComparisons(productName, category);
+      res.json(priceComparisons);
+    } catch (error) {
+      console.error("Error fetching price comparisons:", error);
+      res.status(500).json({ message: "Failed to fetch price comparisons" });
+    }
+  });
+
+  app.get('/api/price-comparison/stats/:productName/:category', async (req, res) => {
+    try {
+      const { productName, category } = req.params;
+      const stats = await storage.getPriceComparisonStats(productName, category);
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching price comparison stats:", error);
+      res.status(500).json({ message: "Failed to fetch price comparison stats" });
+    }
+  });
+
+  // Subscription order endpoints
+  app.post('/api/subscription-orders', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const subscription = await storage.createSubscriptionOrder({
+        ...req.body,
+        customerId: userId,
+      });
+      res.json(subscription);
+    } catch (error) {
+      console.error("Error creating subscription order:", error);
+      res.status(500).json({ message: "Failed to create subscription order" });
+    }
+  });
+
+  app.get('/api/subscription-orders', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const subscriptions = await storage.getSubscriptionOrders(userId);
+      res.json(subscriptions);
+    } catch (error) {
+      console.error("Error fetching subscription orders:", error);
+      res.status(500).json({ message: "Failed to fetch subscription orders" });
+    }
+  });
+
+  app.put('/api/subscription-orders/:id/toggle', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { isActive } = req.body;
+      const subscription = await storage.updateSubscriptionOrder(id, { isActive });
+      res.json(subscription);
+    } catch (error) {
+      console.error("Error updating subscription order:", error);
+      res.status(500).json({ message: "Failed to update subscription order" });
+    }
+  });
+
+  app.delete('/api/subscription-orders/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteSubscriptionOrder(id);
+      res.json({ message: "Subscription cancelled successfully" });
+    } catch (error) {
+      console.error("Error cancelling subscription order:", error);
+      res.status(500).json({ message: "Failed to cancel subscription order" });
+    }
+  });
+
+  // Admin endpoints
+  app.get('/api/admin/check', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      // For now, simple check - in production, check admin table
+      const isAdmin = userId === 'admin' || (req.user.claims.email && req.user.claims.email.includes('admin'));
+      res.json(isAdmin);
+    } catch (error) {
+      console.error("Error checking admin status:", error);
+      res.status(500).json({ message: "Failed to check admin status" });
+    }
+  });
+
+  app.get('/api/admin/dashboard', isAuthenticated, async (req: any, res) => {
+    try {
+      // Mock data for now - will implement proper analytics later
+      const dashboardData = {
+        totalFarmers: 45,
+        pendingFarmersCount: 8,
+        totalOrders: 234,
+        totalRevenue: 45600,
+        totalCommission: 2280,
+        activeUsers: 156,
+        recentOrders: [
+          { id: 'order1', customerName: 'John Doe', totalAmount: 250, status: 'delivered' },
+          { id: 'order2', customerName: 'Jane Smith', totalAmount: 180, status: 'pending' },
+        ],
+        topProducts: [],
+        revenueByMonth: []
+      };
+      res.json(dashboardData);
+    } catch (error) {
+      console.error("Error fetching admin dashboard:", error);
+      res.status(500).json({ message: "Failed to fetch admin dashboard" });
+    }
+  });
+
+  app.get('/api/admin/farmer-applications', isAuthenticated, async (req: any, res) => {
+    try {
+      // Mock data for now - will implement proper farmer applications later
+      const applications = [
+        {
+          id: 'app1',
+          farmName: 'Green Valley Farm',
+          farmerName: 'Peter Mwangi',
+          location: 'Nakuru',
+          farmSize: 5,
+          description: 'Organic vegetable farm specializing in tomatoes and lettuce',
+          documents: [],
+          appliedAt: new Date().toISOString(),
+          status: 'pending'
+        },
+        {
+          id: 'app2',
+          farmName: 'Sunshine Dairy',
+          farmerName: 'Mary Wanjiku',
+          location: 'Eldoret',
+          farmSize: 10,
+          description: 'Dairy farm with 20 Holstein cows producing fresh milk daily',
+          documents: [],
+          appliedAt: new Date().toISOString(),
+          status: 'pending'
+        }
+      ];
+      res.json(applications);
+    } catch (error) {
+      console.error("Error fetching farmer applications:", error);
+      res.status(500).json({ message: "Failed to fetch farmer applications" });
+    }
+  });
+
+  app.put('/api/admin/farmers/:id/approve', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      await storage.updateFarmerVerification(id, true);
+      res.json({ message: "Farmer approved successfully" });
+    } catch (error) {
+      console.error("Error approving farmer:", error);
+      res.status(500).json({ message: "Failed to approve farmer" });
+    }
+  });
+
+  app.put('/api/admin/farmers/:id/reject', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      await storage.updateFarmerVerification(id, false);
+      res.json({ message: "Farmer application rejected" });
+    } catch (error) {
+      console.error("Error rejecting farmer:", error);
+      res.status(500).json({ message: "Failed to reject farmer application" });
+    }
+  });
+
   app.get('/api/products/:id', async (req, res) => {
     try {
       const product = await storage.getProduct(req.params.id);

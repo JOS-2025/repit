@@ -20,6 +20,7 @@ import Checkout from "@/pages/checkout";
 import FarmerAnalytics from "@/pages/farmer-analytics";
 import Wishlist from "@/pages/wishlist";
 import Community from "@/pages/community";
+import AdminDashboard from "@/pages/admin";
 import ChatSupport from "@/components/chat-support";
 
 function Router() {
@@ -50,6 +51,7 @@ function Router() {
           <Route path="/farmer-analytics" component={FarmerAnalytics} />
           <Route path="/wishlist" component={Wishlist} />
           <Route path="/community" component={Community} />
+          <Route path="/admin" component={AdminDashboard} />
         </>
       )}
       

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Navigation from "@/components/navigation";
 import CategoryFilter from "@/components/category-filter";
@@ -7,21 +7,75 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Search, Filter, Leaf, Heart } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Search, Filter, Leaf, Heart, MapPin, User, Star } from "lucide-react";
 
 export default function Products() {
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchType, setSearchType] = useState<"all" | "product" | "farmer" | "location">("all");
+  const [sortBy, setSortBy] = useState<"name" | "price" | "rating" | "distance">("name");
 
   const { data: products = [], isLoading } = useQuery({
     queryKey: ["/api/products", selectedCategory ? { category: selectedCategory } : {}],
     retry: false,
   });
 
-  const filteredProducts = (products as any[]).filter((product: any) =>
-    product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    product.description?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Smart search functionality
+  const filteredProducts = useMemo(() => {
+    let filtered = (products as any[]).filter((product: any) => {
+      if (!searchQuery.trim()) return true;
+      
+      const query = searchQuery.toLowerCase();
+      
+      switch (searchType) {
+        case "product":
+          return product.name.toLowerCase().includes(query) ||
+                 product.description?.toLowerCase().includes(query) ||
+                 product.category?.toLowerCase().includes(query);
+        
+        case "farmer":
+          return product.farmer?.farmName?.toLowerCase().includes(query) ||
+                 product.farmer?.firstName?.toLowerCase().includes(query) ||
+                 product.farmer?.lastName?.toLowerCase().includes(query);
+        
+        case "location":
+          return product.farmer?.location?.toLowerCase().includes(query) ||
+                 product.farmer?.county?.toLowerCase().includes(query) ||
+                 product.farmer?.town?.toLowerCase().includes(query);
+        
+        default: // "all"
+          return product.name.toLowerCase().includes(query) ||
+                 product.description?.toLowerCase().includes(query) ||
+                 product.farmer?.farmName?.toLowerCase().includes(query) ||
+                 product.farmer?.location?.toLowerCase().includes(query) ||
+                 product.category?.toLowerCase().includes(query);
+      }
+    });
+
+    // Apply category filter
+    if (selectedCategory) {
+      filtered = filtered.filter(product => 
+        product.category?.toLowerCase() === selectedCategory.toLowerCase()
+      );
+    }
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case "price":
+          return parseFloat(a.price || 0) - parseFloat(b.price || 0);
+        case "rating":
+          return (b.rating || 0) - (a.rating || 0);
+        case "distance":
+          return (a.distance || 0) - (b.distance || 0);
+        default: // "name"
+          return a.name.localeCompare(b.name);
+      }
+    });
+
+    return filtered;
+  }, [products, searchQuery, searchType, selectedCategory, sortBy]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 dark:from-gray-900 dark:to-gray-800">
@@ -42,38 +96,104 @@ export default function Products() {
             Support sustainable agriculture and enjoy farm-to-table freshness.
           </p>
           
-          {/* Search and Filter Section */}
-          <Card className="max-w-2xl mx-auto mb-8 shadow-lg">
+          {/* Smart Search and Filter Section */}
+          <Card className="max-w-4xl mx-auto mb-8 shadow-lg">
             <CardContent className="p-6">
-              <div className="flex flex-col sm:flex-row gap-4">
-                <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <Input
-                    type="text"
-                    placeholder="Search for fruits, vegetables, herbs..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 border-green-200 focus:border-green-500"
-                    data-testid="input-search-products"
-                  />
+              <div className="space-y-4">
+                {/* Search Input with Type Selection */}
+                <div className="flex flex-col lg:flex-row gap-4">
+                  <div className="flex-1 relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <Input
+                      type="text"
+                      placeholder={
+                        searchType === "product" ? "Search products..." :
+                        searchType === "farmer" ? "Search farmers..." :
+                        searchType === "location" ? "Search locations..." :
+                        "Search products, farmers, locations..."
+                      }
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10 border-green-200 focus:border-green-500"
+                      data-testid="input-search-products"
+                    />
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <Select value={searchType} onValueChange={(value: any) => setSearchType(value)}>
+                      <SelectTrigger className="w-40 border-green-200">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">
+                          <div className="flex items-center gap-2">
+                            <Search className="w-4 h-4" />
+                            All
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="product">
+                          <div className="flex items-center gap-2">
+                            <Leaf className="w-4 h-4" />
+                            Products
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="farmer">
+                          <div className="flex items-center gap-2">
+                            <User className="w-4 h-4" />
+                            Farmers
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="location">
+                          <div className="flex items-center gap-2">
+                            <MapPin className="w-4 h-4" />
+                            Locations
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+
+                    <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+                      <SelectTrigger className="w-40 border-green-200">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="name">Name A-Z</SelectItem>
+                        <SelectItem value="price">Price Low-High</SelectItem>
+                        <SelectItem value="rating">
+                          <div className="flex items-center gap-2">
+                            <Star className="w-4 h-4" />
+                            Rating
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="distance">
+                          <div className="flex items-center gap-2">
+                            <MapPin className="w-4 h-4" />
+                            Distance
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                <Button
-                  variant="outline"
-                  className="flex items-center gap-2 border-green-200 text-green-700 hover:bg-green-50"
-                >
-                  <Filter className="w-4 h-4" />
-                  Filter
-                </Button>
+                
+                {/* Search Results Info */}
+                {searchQuery && (
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                      {filteredProducts.length} results for "{searchQuery}" 
+                      {searchType !== "all" && ` in ${searchType}s`}
+                    </Badge>
+                    {selectedCategory && (
+                      <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                        Category: {selectedCategory}
+                      </Badge>
+                    )}
+                    <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+                      Sorted by: {sortBy}
+                    </Badge>
+                  </div>
+                )}
               </div>
-              
-              {/* Search Results Info */}
-              {searchQuery && (
-                <div className="mt-4 text-sm text-gray-600">
-                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                    {filteredProducts.length} products found for "{searchQuery}"
-                  </Badge>
-                </div>
-              )}
             </CardContent>
           </Card>
 

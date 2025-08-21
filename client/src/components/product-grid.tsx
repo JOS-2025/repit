@@ -6,6 +6,8 @@ import { isUnauthorizedError } from "@/lib/authUtils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import PriceComparison from "@/components/price-comparison";
+import SubscriptionOrders from "@/components/subscription-orders";
 
 interface ProductGridProps {
   products: any[];
@@ -146,19 +148,39 @@ export default function ProductGrid({ products, isLoading, showLoginPrompt }: Pr
                   <p className="text-sm text-gray-500 mb-2" data-testid={`text-farm-name-${product.id}`}>
                     {product.farmer?.farmName}
                   </p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-lg font-bold text-farm-green" data-testid={`text-price-${product.id}`}>
-                      KSh {parseFloat(product.price || 0).toLocaleString()}/{product.unit}
-                    </span>
-                    <Button
-                      size="sm"
-                      onClick={() => handleAddToCart(product.id)}
-                      disabled={addToCartMutation.isPending}
-                      className="bg-farm-green hover:bg-farm-green-dark"
-                      data-testid={`button-add-to-cart-${product.id}`}
-                    >
-                      {addToCartMutation.isPending ? "Adding..." : "Add to Cart"}
-                    </Button>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-lg font-bold text-farm-green" data-testid={`text-price-${product.id}`}>
+                        KSh {parseFloat(product.price || 0).toLocaleString()}/{product.unit}
+                      </span>
+                      <Button
+                        size="sm"
+                        onClick={() => handleAddToCart(product.id)}
+                        disabled={addToCartMutation.isPending}
+                        className="bg-farm-green hover:bg-farm-green-dark"
+                        data-testid={`button-add-to-cart-${product.id}`}
+                      >
+                        {addToCartMutation.isPending ? "Adding..." : "Add to Cart"}
+                      </Button>
+                    </div>
+                    
+                    {/* Price Comparison */}
+                    <div className="flex justify-center">
+                      <PriceComparison
+                        productName={product.name}
+                        category={product.category}
+                        currentPrice={parseFloat(product.price || 0)}
+                        farmerId={product.farmerId}
+                      />
+                    </div>
+                    
+                    {/* Subscription Orders */}
+                    <SubscriptionOrders
+                      productId={product.id}
+                      productName={product.name}
+                      currentPrice={parseFloat(product.price || 0)}
+                      farmerId={product.farmerId}
+                    />
                   </div>
                 </CardContent>
               </Card>

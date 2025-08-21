@@ -261,6 +261,107 @@ export const insertSimpleOrderSchema = createInsertSchema(simpleOrders).omit({
 });
 
 // Types
+// Subscription orders for recurring deliveries
+export const subscriptionOrders = pgTable("subscription_orders", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  customerId: varchar("customer_id").notNull().references(() => users.id),
+  farmerId: varchar("farmer_id").notNull().references(() => farmers.id),
+  productId: varchar("product_id").notNull().references(() => products.id),
+  quantity: integer("quantity").notNull(),
+  frequency: varchar("frequency").notNull(), // weekly, monthly, etc
+  nextDelivery: timestamp("next_delivery").notNull(),
+  isActive: boolean("is_active").default(true),
+  totalDeliveries: integer("total_deliveries").default(0),
+  pricePerUnit: decimal("price_per_unit", { precision: 10, scale: 2 }).notNull(),
+  deliveryAddress: text("delivery_address").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Admin management table
+export const admins = pgTable("admins", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  role: varchar("role").notNull().default("admin"), // admin, super_admin
+  permissions: jsonb("permissions").notNull(),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Commission tracking
+export const commissions = pgTable("commissions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orderId: varchar("order_id").notNull().references(() => orders.id),
+  farmerId: varchar("farmer_id").notNull().references(() => farmers.id),
+  orderAmount: decimal("order_amount", { precision: 10, scale: 2 }).notNull(),
+  commissionRate: decimal("commission_rate", { precision: 5, scale: 2 }).notNull(),
+  commissionAmount: decimal("commission_amount", { precision: 10, scale: 2 }).notNull(),
+  status: varchar("status").default("pending"), // pending, paid
+  createdAt: timestamp("created_at").defaultNow(),
+  paidAt: timestamp("paid_at"),
+});
+
+// Stock alerts for farmers
+export const stockAlerts = pgTable("stock_alerts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  productId: varchar("product_id").notNull().references(() => products.id),
+  farmerId: varchar("farmer_id").notNull().references(() => farmers.id),
+  alertType: varchar("alert_type").notNull(), // low_stock, out_of_stock
+  isRead: boolean("is_read").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Loyalty points system
+export const loyaltyPoints = pgTable("loyalty_points", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  points: integer("points").notNull(),
+  pointsUsed: integer("points_used").default(0),
+  source: varchar("source").notNull(), // order, referral, bonus
+  orderId: varchar("order_id").references(() => orders.id),
+  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Price comparison tracking
+export const priceComparisons = pgTable("price_comparisons", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  productName: varchar("product_name").notNull(),
+  category: categoryEnum("category").notNull(),
+  averagePrice: decimal("average_price", { precision: 10, scale: 2 }).notNull(),
+  lowestPrice: decimal("lowest_price", { precision: 10, scale: 2 }).notNull(),
+  highestPrice: decimal("highest_price", { precision: 10, scale: 2 }).notNull(),
+  farmersCount: integer("farmers_count").notNull(),
+  lastUpdated: timestamp("last_updated").defaultNow(),
+});
+
+// Customer insights for analytics
+export const customerInsights = pgTable("customer_insights", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  productId: varchar("product_id").notNull().references(() => products.id),
+  purchaseCount: integer("purchase_count").default(0),
+  totalRevenue: decimal("total_revenue", { precision: 10, scale: 2 }).default("0"),
+  averageRating: decimal("average_rating", { precision: 3, scale: 2 }).default("0"),
+  lastPurchase: timestamp("last_purchase"),
+  popularWithAge: varchar("popular_with_age"), // 18-25, 26-35, etc
+  popularLocation: varchar("popular_location"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// SMS/WhatsApp/Email notifications
+export const messageNotifications = pgTable("message_notifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  type: varchar("type").notNull(), // sms, whatsapp, email
+  message: text("message").notNull(),
+  status: varchar("status").default("pending"), // pending, sent, failed
+  orderId: varchar("order_id").references(() => orders.id),
+  phoneNumber: varchar("phone_number"),
+  sentAt: timestamp("sent_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
 export type InsertFarmer = z.infer<typeof insertFarmerSchema>;

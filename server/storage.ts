@@ -79,6 +79,16 @@ export interface IStorage {
   getDriverAssignments(driverId: string): Promise<any[]>;
   createDeliveryAssignment(assignment: any): Promise<any>;
   getDeliveryTracking(orderId: string): Promise<any>;
+  
+  // Price comparison operations
+  getPriceComparisons(productName: string, category: string): Promise<any[]>;
+  getPriceComparisonStats(productName: string, category: string): Promise<any>;
+  
+  // Subscription order operations
+  createSubscriptionOrder(subscription: any): Promise<any>;
+  getSubscriptionOrders(userId: string): Promise<any[]>;
+  updateSubscriptionOrder(id: string, data: any): Promise<any>;
+  deleteSubscriptionOrder(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -518,6 +528,63 @@ export class DatabaseStorage implements IStorage {
       ...tracking,
       locationHistory: locationHistoryData.reverse(), // Oldest first for route display
     };
+  }
+
+  // Price comparison operations - stub implementations
+  async getPriceComparisons(productName: string, category: string): Promise<any[]> {
+    // Mock data for now - will implement proper logic later
+    return [
+      {
+        farmerId: "farm1",
+        farmerName: "Green Valley Farm",
+        farmLocation: "Nakuru",
+        price: 150,
+        rating: 4.5,
+        inStock: true,
+        verified: true,
+        distance: 5
+      },
+      {
+        farmerId: "farm2", 
+        farmerName: "Sunshine Acres",
+        farmLocation: "Eldoret",
+        price: 120,
+        rating: 4.8,
+        inStock: true,
+        verified: true,
+        distance: 12
+      }
+    ];
+  }
+
+  async getPriceComparisonStats(productName: string, category: string): Promise<any> {
+    // Mock data for now - will implement proper logic later
+    return {
+      averagePrice: 135,
+      lowestPrice: 120,
+      highestPrice: 150,
+      farmersCount: 2
+    };
+  }
+
+  // Subscription order operations - stub implementations
+  async createSubscriptionOrder(subscription: any): Promise<any> {
+    // Will implement with proper schema later
+    return { id: "sub123", ...subscription };
+  }
+
+  async getSubscriptionOrders(userId: string): Promise<any[]> {
+    // Mock data for now
+    return [];
+  }
+
+  async updateSubscriptionOrder(id: string, data: any): Promise<any> {
+    // Will implement later
+    return { id, ...data };
+  }
+
+  async deleteSubscriptionOrder(id: string): Promise<void> {
+    // Will implement later
   }
 }
 
