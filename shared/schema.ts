@@ -61,6 +61,36 @@ export const farmers = pgTable("farmers", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Farmer training modules
+export const farmerTrainingModules = pgTable("farmer_training_modules", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  category: varchar("category").notNull(), // crop-management, pest-control, soil-health, irrigation, etc.
+  type: varchar("type").notNull(), // guide, video, interactive
+  contentUrl: text("content_url"), // URL to video or external resource
+  content: text("content"), // For text-based guides
+  duration: integer("duration"), // Duration in minutes for videos
+  difficulty: varchar("difficulty").default("beginner"), // beginner, intermediate, advanced
+  prerequisites: text("prerequisites"), // Required prior modules
+  verificationRequired: boolean("verification_required").default(false),
+  isActive: boolean("is_active").default(true),
+  orderIndex: integer("order_index").default(0), // For sorting
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Farmer training completions
+export const farmerTrainingCompletions = pgTable("farmer_training_completions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  farmerId: varchar("farmer_id").references(() => farmers.id).notNull(),
+  moduleId: varchar("module_id").references(() => farmerTrainingModules.id).notNull(),
+  completedAt: timestamp("completed_at").defaultNow(),
+  score: integer("score"), // If there's a quiz/assessment
+  verificationBadge: boolean("verification_badge").default(false),
+  timeSpent: integer("time_spent"), // Time spent in minutes
+});
+
 // Farmer ratings table
 export const farmerRatings = pgTable("farmer_ratings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -1051,3 +1081,7 @@ export type ForumPost = typeof forumPosts.$inferSelect;
 export type InsertForumPost = typeof forumPosts.$inferInsert;
 export type ForumReaction = typeof forumReactions.$inferSelect;
 export type InsertForumReaction = typeof forumReactions.$inferInsert;
+export type FarmerTrainingModule = typeof farmerTrainingModules.$inferSelect;
+export type InsertFarmerTrainingModule = typeof farmerTrainingModules.$inferInsert;
+export type FarmerTrainingCompletion = typeof farmerTrainingCompletions.$inferSelect;
+export type InsertFarmerTrainingCompletion = typeof farmerTrainingCompletions.$inferInsert;

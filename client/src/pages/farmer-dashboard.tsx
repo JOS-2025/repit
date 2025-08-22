@@ -294,6 +294,240 @@ export default function FarmerDashboard() {
           </Card>
         </div>
 
+        {/* Farmer Training Section */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <i className="fas fa-graduation-cap text-blue-600"></i>
+              Farmer Training Center
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Training Modules */}
+              <div>
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <i className="fas fa-book-open text-green-600"></i>
+                  Available Training Modules
+                </h3>
+                <div className="space-y-3">
+                  <div className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h4 className="font-medium text-gray-900">Crop Management Basics</h4>
+                        <p className="text-sm text-gray-600 mt-1">
+                          Learn essential techniques for planting, watering, and maintaining healthy crops
+                        </p>
+                        <div className="flex items-center gap-4 mt-2">
+                          <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                            <i className="fas fa-seedling mr-1"></i>
+                            Beginner
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            <i className="fas fa-clock mr-1"></i>
+                            45 min
+                          </span>
+                          <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                            <i className="fas fa-play-circle mr-1"></i>
+                            Video Guide
+                          </span>
+                        </div>
+                      </div>
+                      <Button size="sm" className="bg-farm-green hover:bg-farm-green-dark ml-4">
+                        <i className="fas fa-play mr-1"></i>
+                        Start
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h4 className="font-medium text-gray-900">Soil Health & Testing</h4>
+                        <p className="text-sm text-gray-600 mt-1">
+                          Understand soil composition, pH levels, and nutrient management
+                        </p>
+                        <div className="flex items-center gap-4 mt-2">
+                          <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
+                            <i className="fas fa-layer-group mr-1"></i>
+                            Intermediate
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            <i className="fas fa-clock mr-1"></i>
+                            60 min
+                          </span>
+                          <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">
+                            <i className="fas fa-microscope mr-1"></i>
+                            Interactive Guide
+                          </span>
+                        </div>
+                      </div>
+                      <Button size="sm" className="bg-farm-green hover:bg-farm-green-dark ml-4">
+                        <i className="fas fa-play mr-1"></i>
+                        Start
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h4 className="font-medium text-gray-900">Pest & Disease Control</h4>
+                        <p className="text-sm text-gray-600 mt-1">
+                          Identify common pests and diseases, prevention and organic treatment methods
+                        </p>
+                        <div className="flex items-center gap-4 mt-2">
+                          <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
+                            <i className="fas fa-layer-group mr-1"></i>
+                            Intermediate
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            <i className="fas fa-clock mr-1"></i>
+                            90 min
+                          </span>
+                          <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                            <i className="fas fa-play-circle mr-1"></i>
+                            Video Series
+                          </span>
+                        </div>
+                      </div>
+                      <Button size="sm" className="bg-farm-green hover:bg-farm-green-dark ml-4">
+                        <i className="fas fa-play mr-1"></i>
+                        Start
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h4 className="font-medium text-gray-900">Water Management & Irrigation</h4>
+                        <p className="text-sm text-gray-600 mt-1">
+                          Efficient irrigation systems, water conservation, and drainage techniques
+                        </p>
+                        <div className="flex items-center gap-4 mt-2">
+                          <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded">
+                            <i className="fas fa-graduation-cap mr-1"></i>
+                            Advanced
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            <i className="fas fa-clock mr-1"></i>
+                            120 min
+                          </span>
+                          <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                            <i className="fas fa-file-alt mr-1"></i>
+                            Study Guide
+                          </span>
+                        </div>
+                      </div>
+                      <Button size="sm" className="bg-farm-green hover:bg-farm-green-dark ml-4">
+                        <i className="fas fa-play mr-1"></i>
+                        Start
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Training Progress & Badges */}
+              <div>
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <i className="fas fa-award text-yellow-600"></i>
+                  Your Progress & Certifications
+                </h3>
+                
+                {/* Overall Progress */}
+                <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-lg p-4 mb-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium">Overall Progress</span>
+                    <span className="text-sm text-gray-600">2 / 4 completed</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className="bg-gradient-to-r from-green-400 to-blue-500 h-2 rounded-full" style={{width: '50%'}}></div>
+                  </div>
+                  <p className="text-xs text-gray-600 mt-2">
+                    Complete all modules to unlock the Master Farmer certification
+                  </p>
+                </div>
+
+                {/* Earned Badges */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <div className="bg-green-100 p-2 rounded-full">
+                      <i className="fas fa-seedling text-green-600 text-lg"></i>
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-medium text-green-900">Crop Management Expert</h4>
+                      <p className="text-sm text-green-700">Completed crop management training</p>
+                      <span className="inline-block text-xs bg-green-200 text-green-800 px-2 py-1 rounded mt-1">
+                        <i className="fas fa-check-circle mr-1"></i>
+                        Verified
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                    <div className="bg-purple-100 p-2 rounded-full">
+                      <i className="fas fa-microscope text-purple-600 text-lg"></i>
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-medium text-purple-900">Soil Health Specialist</h4>
+                      <p className="text-sm text-purple-700">Mastered soil testing and management</p>
+                      <span className="inline-block text-xs bg-purple-200 text-purple-800 px-2 py-1 rounded mt-1">
+                        <i className="fas fa-check-circle mr-1"></i>
+                        Verified
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Upcoming Badges */}
+                  <div className="flex items-center gap-3 p-3 bg-gray-50 border border-gray-200 rounded-lg opacity-60">
+                    <div className="bg-gray-100 p-2 rounded-full">
+                      <i className="fas fa-bug text-gray-400 text-lg"></i>
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-medium text-gray-600">Pest Control Expert</h4>
+                      <p className="text-sm text-gray-500">Complete pest control training to unlock</p>
+                      <span className="inline-block text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded mt-1">
+                        <i className="fas fa-lock mr-1"></i>
+                        Locked
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 p-3 bg-gray-50 border border-gray-200 rounded-lg opacity-60">
+                    <div className="bg-gray-100 p-2 rounded-full">
+                      <i className="fas fa-tint text-gray-400 text-lg"></i>
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-medium text-gray-600">Water Management Master</h4>
+                      <p className="text-sm text-gray-500">Complete irrigation training to unlock</p>
+                      <span className="inline-block text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded mt-1">
+                        <i className="fas fa-lock mr-1"></i>
+                        Locked
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Master Certificate */}
+                  <div className="mt-4 p-4 bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-200 rounded-lg">
+                    <div className="text-center">
+                      <i className="fas fa-medal text-yellow-600 text-2xl mb-2"></i>
+                      <h4 className="font-bold text-yellow-900">Master Farmer Certificate</h4>
+                      <p className="text-sm text-yellow-800 mb-2">
+                        Complete all training modules to earn this prestigious certification
+                      </p>
+                      <div className="text-xs text-yellow-700">
+                        Progress: 50% complete
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Product Upload Section */}
         <Card className="mb-8">
           <CardHeader>
