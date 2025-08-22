@@ -82,6 +82,17 @@ export default function Navigation() {
                 Browse Products
               </Link>
               <Link 
+                href="/categories" 
+                className={`px-3 py-2 text-sm font-medium ${
+                  location === '/categories' 
+                    ? 'text-farm-green border-b-2 border-farm-green' 
+                    : 'text-gray-500 hover:text-gray-900'
+                }`}
+                data-testid="link-categories"
+              >
+                Categories
+              </Link>
+              <Link 
                 href="/orders" 
                 className={`px-3 py-2 text-sm font-medium ${
                   location === '/orders' 
