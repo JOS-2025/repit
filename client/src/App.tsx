@@ -35,6 +35,7 @@ function Router() {
           <Route path="/" component={Landing} />
           <Route path="/products" component={Products} />
           <Route path="/farmer/:id" component={lazy(() => import("./pages/farmer-profile"))} />
+          <Route path="/community" component={Community} />
           <Route path="/help" component={HelpCenter} />
           <Route path="/terms" component={TermsConditions} />
           <Route path="/privacy" component={PrivacyPolicy} />
