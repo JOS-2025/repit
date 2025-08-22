@@ -22,7 +22,6 @@ import Wishlist from "@/pages/wishlist";
 import Community from "@/pages/community";
 import AdminDashboard from "@/pages/admin";
 import { EscrowDemo } from "@/pages/EscrowDemo";
-import FarmerRegistration from "@/pages/farmer-registration";
 import ChatSupport from "@/components/chat-support";
 import { lazy } from "react";
 
@@ -35,7 +34,6 @@ function Router() {
         <>
           <Route path="/" component={Landing} />
           <Route path="/products" component={Products} />
-          <Route path="/farmer-registration" component={FarmerRegistration} />
           <Route path="/farmer/:id" component={lazy(() => import("./pages/farmer-profile"))} />
           <Route path="/help" component={HelpCenter} />
           <Route path="/terms" component={TermsConditions} />
@@ -47,7 +45,6 @@ function Router() {
           <Route path="/" component={Home} />
           <Route path="/farmer-dashboard" component={FarmerDashboard} />
           <Route path="/products" component={Products} />
-          <Route path="/farmer-registration" component={FarmerRegistration} />
           <Route path="/farmer/:id" component={lazy(() => import("./pages/farmer-profile"))} />
           <Route path="/orders" component={OrderTracking} />
           <Route path="/driver-dashboard" component={DriverDashboard} />
