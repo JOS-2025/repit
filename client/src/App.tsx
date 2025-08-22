@@ -23,6 +23,7 @@ import Community from "@/pages/community";
 import AdminDashboard from "@/pages/admin";
 import About from "@/pages/about";
 import Categories from "@/pages/categories";
+import Recommendations from "@/pages/recommendations";
 import { EscrowDemo } from "@/pages/EscrowDemo";
 import ChatSupport from "@/components/chat-support";
 import { lazy } from "react";
@@ -37,6 +38,7 @@ function Router() {
           <Route path="/" component={Landing} />
           <Route path="/products" component={Products} />
           <Route path="/categories" component={Categories} />
+          <Route path="/recommendations" component={Recommendations} />
           <Route path="/farmer/:id" component={lazy(() => import("./pages/farmer-profile"))} />
           <Route path="/community" component={Community} />
           <Route path="/about" component={About} />
@@ -51,6 +53,7 @@ function Router() {
           <Route path="/farmer-dashboard" component={FarmerDashboard} />
           <Route path="/products" component={Products} />
           <Route path="/categories" component={Categories} />
+          <Route path="/recommendations" component={Recommendations} />
           <Route path="/farmer/:id" component={lazy(() => import("./pages/farmer-profile"))} />
           <Route path="/orders" component={OrderTracking} />
           <Route path="/driver-dashboard" component={DriverDashboard} />

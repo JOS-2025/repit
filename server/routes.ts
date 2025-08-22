@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { escrowService } from "./escrowService";
 import { setupGPSTracking, updateDriverLocation, updateDeliveryStatus, calculateETA } from "./gpsTracking";
+import { aiService } from "./ai";
 import { 
   insertFarmerSchema,
   insertProductSchema,
@@ -1286,6 +1287,133 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   const httpServer = createServer(app);
   
+  // AI Recommendation routes
+  app.get('/api/ai/recipe-recommendations', isAuthenticated, async (req: any, res) => {
+    try {
+      console.log("[AI] Generating recipe recommendations for user:", req.user.claims.sub);
+      
+      // Get user's recent purchases to base recommendations on
+      const userCartItems = await storage.getCartItems(req.user.claims.sub);
+      const purchasedItems: Array<{ name: string; category: string; description?: string }> = [];
+      
+      // Use cart items as proxy for purchase history since orders might be limited
+      for (const item of userCartItems.slice(0, 10)) {
+        purchasedItems.push({
+          name: item.product.name,
+          category: item.product.category,
+          description: item.product.description || ''
+        });
+      }
+      
+      if (purchasedItems.length === 0) {
+        // If no purchase history, use some default popular items
+        const allProducts = await storage.getProducts();
+        const popularItems = allProducts.slice(0, 3).map((p: any) => ({
+          name: p.name,
+          category: p.category,
+          description: p.description || ''
+        }));
+        
+        const recipes = await aiService.generateRecipeRecommendations(popularItems);
+        return res.json({ success: true, recipes, basedOn: 'popular items' });
+      }
+      
+      const recipes = await aiService.generateRecipeRecommendations(purchasedItems);
+      res.json({ success: true, recipes, basedOn: 'purchase history' });
+    } catch (error) {
+      console.error("Error generating recipe recommendations:", error);
+      res.status(500).json({ success: false, message: "Failed to generate recipe recommendations" });
+    }
+  });
+
+  app.get('/api/ai/product-recommendations', isAuthenticated, async (req: any, res) => {
+    try {
+      console.log("[AI] Generating product recommendations for user:", req.user.claims.sub);
+      
+      // Get user's purchase history
+      const userCartItems = await storage.getCartItems(req.user.claims.sub);
+      const userHistory: Array<{ name: string; category: string }> = [];
+      
+      // Use cart items as proxy for purchase history
+      for (const item of userCartItems.slice(0, 15)) {
+        userHistory.push({
+          name: item.product.name,
+          category: item.product.category
+        });
+      }
+      
+      // Get all available products
+      const availableProducts = await storage.getProducts();
+      const productData = availableProducts.map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        category: p.category,
+        description: p.description || ''
+      }));
+      
+      const recommendations = await aiService.generateProductRecommendations(userHistory, productData);
+      
+      // Get full product details for recommendations
+      const recommendedProducts = [];
+      for (const rec of recommendations) {
+        const product = await storage.getProduct(rec.productId);
+        if (product) {
+          recommendedProducts.push({
+            ...product,
+            reason: rec.reason,
+            confidence: rec.confidence
+          });
+        }
+      }
+      
+      res.json({ success: true, recommendations: recommendedProducts });
+    } catch (error) {
+      console.error("Error generating product recommendations:", error);
+      res.status(500).json({ success: false, message: "Failed to generate product recommendations" });
+    }
+  });
+
+  app.get('/api/ai/trending-products', async (req, res) => {
+    try {
+      console.log("[AI] Generating trending products");
+      
+      // Get all available products
+      const allProducts = await storage.getProducts();
+      const productData = allProducts.map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        category: p.category,
+        description: p.description || ''
+      }));
+      
+      // Get current season context
+      const currentMonth = new Date().getMonth();
+      const season = currentMonth >= 2 && currentMonth <= 4 ? 'spring' :
+                    currentMonth >= 5 && currentMonth <= 7 ? 'summer' :
+                    currentMonth >= 8 && currentMonth <= 10 ? 'fall' : 'winter';
+      
+      const trending = await aiService.generateTrendingProducts(productData, season);
+      
+      // Get full product details for trending items
+      const trendingProducts = [];
+      for (const trend of trending) {
+        const product = await storage.getProduct(trend.productId);
+        if (product) {
+          trendingProducts.push({
+            ...product,
+            reason: trend.reason,
+            confidence: trend.confidence
+          });
+        }
+      }
+      
+      res.json({ success: true, trending: trendingProducts, season });
+    } catch (error) {
+      console.error("Error generating trending products:", error);
+      res.status(500).json({ success: false, message: "Failed to generate trending products" });
+    }
+  });
+
   // Setup GPS tracking WebSocket
   setupGPSTracking(httpServer);
   
