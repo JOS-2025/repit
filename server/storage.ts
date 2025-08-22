@@ -24,6 +24,7 @@ import {
   blockchainRecords,
   iotSensors,
   sensorReadings,
+  farmerRatings,
   type User,
   type UpsertUser,
   type InsertFarmer,
@@ -46,6 +47,8 @@ import {
   type DeliveryTracking,
   type InsertDeliveryTracking,
   type DeliveryTrackingWithDriver,
+  type FarmerRating,
+  type InsertFarmerRating,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc } from "drizzle-orm";
@@ -60,6 +63,16 @@ export interface IStorage {
   getFarmerByUserId(userId: string): Promise<Farmer | undefined>;
   getFarmer(farmerId: string): Promise<Farmer | undefined>;
   updateFarmerVerification(farmerId: string, isVerified: boolean): Promise<void>;
+  updateFarmer(farmerId: string, updates: Partial<InsertFarmer>): Promise<Farmer>;
+  getFarmerWithDetails(farmerId: string): Promise<any>;
+  
+  // Farmer rating operations
+  createFarmerRating(rating: InsertFarmerRating): Promise<FarmerRating>;
+  getFarmerRatings(farmerId: string): Promise<any[]>;
+  getFarmerRatingStats(farmerId: string): Promise<any>;
+  canRateFarmer(userId: string, farmerId: string): Promise<boolean>;
+  getUserFarmerRating(userId: string, farmerId: string): Promise<FarmerRating | undefined>;
+  updateFarmerAverageRating(farmerId: string): Promise<void>;
   
   // Product operations
   createProduct(product: InsertProduct): Promise<Product>;
@@ -204,6 +217,145 @@ export class DatabaseStorage implements IStorage {
     await db
       .update(farmers)
       .set({ isVerified, updatedAt: new Date() })
+      .where(eq(farmers.id, farmerId));
+  }
+
+  async updateFarmer(farmerId: string, updates: Partial<InsertFarmer>): Promise<Farmer> {
+    const [updatedFarmer] = await db
+      .update(farmers)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(farmers.id, farmerId))
+      .returning();
+    return updatedFarmer;
+  }
+
+  async getFarmerWithDetails(farmerId: string): Promise<any> {
+    const [result] = await db
+      .select()
+      .from(farmers)
+      .innerJoin(users, eq(farmers.userId, users.id))
+      .where(eq(farmers.id, farmerId));
+    
+    if (!result) return undefined;
+    
+    return {
+      ...result.farmers,
+      user: result.users
+    };
+  }
+
+  // Farmer rating operations
+  async createFarmerRating(rating: InsertFarmerRating): Promise<FarmerRating> {
+    const [newRating] = await db
+      .insert(farmerRatings)
+      .values(rating)
+      .returning();
+    
+    // Update farmer's average rating
+    await this.updateFarmerAverageRating(rating.farmerId);
+    
+    return newRating;
+  }
+
+  async getFarmerRatings(farmerId: string): Promise<any[]> {
+    const ratings = await db
+      .select()
+      .from(farmerRatings)
+      .innerJoin(users, eq(farmerRatings.userId, users.id))
+      .where(eq(farmerRatings.farmerId, farmerId))
+      .orderBy(desc(farmerRatings.createdAt));
+    
+    return ratings.map(row => ({
+      ...row.farmer_ratings,
+      user: {
+        id: row.users.id,
+        firstName: row.users.firstName,
+        lastName: row.users.lastName,
+        profileImageUrl: row.users.profileImageUrl
+      }
+    }));
+  }
+
+  async getFarmerRatingStats(farmerId: string): Promise<any> {
+    const stats = await db
+      .select({
+        totalRatings: farmers.totalRatings,
+        averageRating: farmers.averageRating,
+      })
+      .from(farmers)
+      .where(eq(farmers.id, farmerId));
+    
+    const ratingDistribution = await db
+      .select()
+      .from(farmerRatings)
+      .where(eq(farmerRatings.farmerId, farmerId));
+    
+    const distribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    ratingDistribution.forEach(rating => {
+      distribution[rating.rating as keyof typeof distribution]++;
+    });
+    
+    return {
+      ...stats[0],
+      ratingDistribution: distribution
+    };
+  }
+
+  async canRateFarmer(userId: string, farmerId: string): Promise<boolean> {
+    // Check if user has purchased from this farmer
+    const purchases = await db
+      .select()
+      .from(orders)
+      .innerJoin(orderItems, eq(orders.id, orderItems.orderId))
+      .innerJoin(products, eq(orderItems.productId, products.id))
+      .where(
+        and(
+          eq(orders.customerId, userId),
+          eq(products.farmerId, farmerId),
+          eq(orders.status, "completed")
+        )
+      );
+    
+    return purchases.length > 0;
+  }
+
+  async getUserFarmerRating(userId: string, farmerId: string): Promise<FarmerRating | undefined> {
+    const [rating] = await db
+      .select()
+      .from(farmerRatings)
+      .where(
+        and(
+          eq(farmerRatings.userId, userId),
+          eq(farmerRatings.farmerId, farmerId)
+        )
+      );
+    return rating;
+  }
+
+  async updateFarmerAverageRating(farmerId: string): Promise<void> {
+    const ratings = await db
+      .select()
+      .from(farmerRatings)
+      .where(eq(farmerRatings.farmerId, farmerId));
+    
+    if (ratings.length === 0) {
+      await db
+        .update(farmers)
+        .set({ averageRating: "0", totalRatings: 0 })
+        .where(eq(farmers.id, farmerId));
+      return;
+    }
+    
+    const totalRating = ratings.reduce((sum, rating) => sum + rating.rating, 0);
+    const averageRating = (totalRating / ratings.length).toFixed(2);
+    
+    await db
+      .update(farmers)
+      .set({ 
+        averageRating: averageRating,
+        totalRatings: ratings.length,
+        updatedAt: new Date()
+      })
       .where(eq(farmers.id, farmerId));
   }
 

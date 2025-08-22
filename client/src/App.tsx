@@ -24,6 +24,7 @@ import AdminDashboard from "@/pages/admin";
 import { EscrowDemo } from "@/pages/EscrowDemo";
 import FarmerRegistration from "@/pages/farmer-registration";
 import ChatSupport from "@/components/chat-support";
+import { lazy } from "react";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -35,6 +36,7 @@ function Router() {
           <Route path="/" component={Landing} />
           <Route path="/products" component={Products} />
           <Route path="/farmer-registration" component={FarmerRegistration} />
+          <Route path="/farmer/:id" component={lazy(() => import("./pages/farmer-profile"))} />
           <Route path="/help" component={HelpCenter} />
           <Route path="/terms" component={TermsConditions} />
           <Route path="/privacy" component={PrivacyPolicy} />
@@ -46,6 +48,7 @@ function Router() {
           <Route path="/farmer-dashboard" component={FarmerDashboard} />
           <Route path="/products" component={Products} />
           <Route path="/farmer-registration" component={FarmerRegistration} />
+          <Route path="/farmer/:id" component={lazy(() => import("./pages/farmer-profile"))} />
           <Route path="/orders" component={OrderTracking} />
           <Route path="/driver-dashboard" component={DriverDashboard} />
           <Route path="/tracking" component={OrderTrackingLive} />

@@ -129,7 +129,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/farmers/:id', async (req, res) => {
     try {
-      const farmer = await storage.getFarmer(req.params.id);
+      const farmer = await storage.getFarmerWithDetails(req.params.id);
       if (!farmer) {
         return res.status(404).json({ message: "Farmer not found" });
       }
@@ -137,6 +137,116 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching farmer:", error);
       res.status(500).json({ message: "Failed to fetch farmer" });
+    }
+  });
+
+  app.put("/api/farmers/:id", isAuthenticated, async (req, res) => {
+    try {
+      const farmer = await storage.getFarmer(req.params.id);
+      if (!farmer) {
+        return res.status(404).json({ message: "Farmer not found" });
+      }
+      
+      // Verify ownership
+      const userId = (req.user as any)?.claims?.sub;
+      if (farmer.userId !== userId) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+
+      const updatedFarmer = await storage.updateFarmer(req.params.id, req.body);
+      res.json(updatedFarmer);
+    } catch (error) {
+      console.error("Error updating farmer:", error);
+      res.status(500).json({ message: "Failed to update farmer" });
+    }
+  });
+
+  app.get("/api/farmers/:id/products", async (req, res) => {
+    try {
+      const products = await storage.getProductsByFarmer(req.params.id);
+      res.json(products);
+    } catch (error) {
+      console.error("Error fetching farmer products:", error);
+      res.status(500).json({ message: "Failed to fetch farmer products" });
+    }
+  });
+
+  // Farmer rating routes
+  app.get("/api/farmers/:id/ratings", async (req, res) => {
+    try {
+      const ratings = await storage.getFarmerRatings(req.params.id);
+      res.json(ratings);
+    } catch (error) {
+      console.error("Error fetching farmer ratings:", error);
+      res.status(500).json({ message: "Failed to fetch farmer ratings" });
+    }
+  });
+
+  app.get("/api/farmers/:id/rating-stats", async (req, res) => {
+    try {
+      const stats = await storage.getFarmerRatingStats(req.params.id);
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching farmer rating stats:", error);
+      res.status(500).json({ message: "Failed to fetch farmer rating stats" });
+    }
+  });
+
+  app.post("/api/farmers/:id/ratings", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any)?.claims?.sub;
+      const { id: farmerId } = req.params;
+      const { rating, comment } = req.body;
+
+      // Check if user can rate this farmer
+      const canRate = await storage.canRateFarmer(userId, farmerId);
+      if (!canRate) {
+        return res.status(403).json({ 
+          message: "You can only rate farmers from whom you have made purchases" 
+        });
+      }
+
+      // Check if user has already rated this farmer
+      const existingRating = await storage.getUserFarmerRating(userId, farmerId);
+      if (existingRating) {
+        return res.status(400).json({ 
+          message: "You have already rated this farmer" 
+        });
+      }
+
+      const isVerifiedPurchase = await storage.canRateFarmer(userId, farmerId);
+      
+      const newRating = await storage.createFarmerRating({
+        userId,
+        farmerId,
+        rating,
+        comment,
+        isVerifiedPurchase
+      });
+
+      res.status(201).json(newRating);
+    } catch (error) {
+      console.error("Error creating farmer rating:", error);
+      res.status(500).json({ message: "Failed to create farmer rating" });
+    }
+  });
+
+  app.get("/api/farmers/:id/can-rate", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any)?.claims?.sub;
+      const { id: farmerId } = req.params;
+      
+      const canRate = await storage.canRateFarmer(userId, farmerId);
+      const existingRating = await storage.getUserFarmerRating(userId, farmerId);
+      
+      res.json({ 
+        canRate: canRate && !existingRating,
+        hasPurchased: canRate,
+        hasRated: !!existingRating
+      });
+    } catch (error) {
+      console.error("Error checking rating eligibility:", error);
+      res.status(500).json({ message: "Failed to check rating eligibility" });
     }
   });
 

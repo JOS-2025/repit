@@ -46,7 +46,31 @@ export const farmers = pgTable("farmers", {
   location: text("location").notNull(),
   farmSize: decimal("farm_size", { precision: 10, scale: 2 }),
   description: text("description"),
+  bio: text("bio"), // Enhanced profile field
+  farmingPractices: text("farming_practices"), // Enhanced profile field
+  profileImageUrl: varchar("profile_image_url"), // Enhanced profile field
+  coverImageUrl: varchar("cover_image_url"), // Enhanced profile field
+  phoneNumber: varchar("phone_number"), // Contact info
+  email: varchar("email"), // Contact info
+  website: varchar("website"), // Contact info
+  socialMediaLinks: jsonb("social_media_links"), // Enhanced profile field
+  averageRating: decimal("average_rating", { precision: 3, scale: 2 }).default("0"),
+  totalRatings: integer("total_ratings").default(0),
   isVerified: boolean("is_verified").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Farmer ratings table
+export const farmerRatings = pgTable("farmer_ratings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  farmerId: varchar("farmer_id").references(() => farmers.id).notNull(),
+  rating: integer("rating").notNull(), // 1-5 stars
+  comment: text("comment"),
+  isVerifiedPurchase: boolean("is_verified_purchase").default(false),
+  helpfulCount: integer("helpful_count").default(0),
+  unhelpfulCount: integer("unhelpful_count").default(0),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -171,6 +195,18 @@ export const farmersRelations = relations(farmers, ({ one, many }) => ({
   }),
   products: many(products),
   orders: many(orders, { relationName: "farmerOrders" }),
+  ratings: many(farmerRatings),
+}));
+
+export const farmerRatingsRelations = relations(farmerRatings, ({ one }) => ({
+  user: one(users, {
+    fields: [farmerRatings.userId],
+    references: [users.id],
+  }),
+  farmer: one(farmers, {
+    fields: [farmerRatings.farmerId],
+    references: [farmers.id],
+  }),
 }));
 
 export const productsRelations = relations(products, ({ one, many }) => ({
@@ -227,6 +263,16 @@ export const insertUserSchema = createInsertSchema(users).omit({
 
 export const insertFarmerSchema = createInsertSchema(farmers).omit({
   id: true,
+  averageRating: true,
+  totalRatings: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertFarmerRatingSchema = createInsertSchema(farmerRatings).omit({
+  id: true,
+  helpfulCount: true,
+  unhelpfulCount: true,
   createdAt: true,
   updatedAt: true,
 });
@@ -366,6 +412,8 @@ export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
 export type InsertFarmer = z.infer<typeof insertFarmerSchema>;
 export type Farmer = typeof farmers.$inferSelect;
+export type InsertFarmerRating = z.infer<typeof insertFarmerRatingSchema>;
+export type FarmerRating = typeof farmerRatings.$inferSelect;
 export type InsertProduct = z.infer<typeof insertProductSchema>;
 export type Product = typeof products.$inferSelect;
 export type InsertOrder = z.infer<typeof insertOrderSchema>;
