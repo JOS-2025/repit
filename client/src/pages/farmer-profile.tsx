@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useParams } from "wouter";
+import { useParams, useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -383,8 +383,15 @@ function FarmerReviews({ farmerId }: { farmerId: string }) {
 
 export default function FarmerProfile() {
   const { id } = useParams();
+  const [location] = useLocation();
+  
+  // Debug: log the farmer ID
+  console.log("Farmer ID from params:", id);
+  console.log("Current location:", location);
+  
   const { data: farmer, isLoading, error } = useQuery<FarmerDetails>({
     queryKey: [`/api/farmers/${id}`],
+    enabled: !!id,
   });
 
   const { data: products = [] } = useQuery<Product[]>({
