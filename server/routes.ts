@@ -1097,6 +1097,157 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============= FORUM API ROUTES =============
+
+  // Get forum categories
+  app.get("/api/forum/categories", async (req, res) => {
+    try {
+      const categories = await storage.getForumCategories();
+      res.json({ success: true, categories });
+    } catch (error) {
+      console.error("Error getting forum categories:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to get forum categories"
+      });
+    }
+  });
+
+  // Get forum topics
+  app.get("/api/forum/topics", async (req: any, res: any) => {
+    try {
+      const { categoryId } = req.query;
+      const topics = await storage.getForumTopics(categoryId);
+      res.json({ success: true, topics });
+    } catch (error) {
+      console.error("Error getting forum topics:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to get forum topics"
+      });
+    }
+  });
+
+  // Create forum topic
+  app.post("/api/forum/topics", isAuthenticated, async (req: any, res: any) => {
+    try {
+      const { title, content, categoryId } = req.body;
+      const userId = req.user.claims.sub;
+      
+      const slug = title.toLowerCase()
+        .replace(/[^\w\s]/gi, '')
+        .replace(/\s+/g, '-')
+        + '-' + Date.now();
+
+      const topic = await storage.createForumTopic({
+        title,
+        content,
+        categoryId,
+        userId,
+        slug,
+        lastReplyAt: new Date(),
+        lastReplyUserId: userId
+      });
+
+      res.json({ success: true, topic });
+    } catch (error) {
+      console.error("Error creating forum topic:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to create forum topic"
+      });
+    }
+  });
+
+  // Get forum topic details
+  app.get("/api/forum/topics/:topicId", async (req: any, res: any) => {
+    try {
+      const { topicId } = req.params;
+      const topic = await storage.getForumTopic(topicId);
+      
+      if (!topic) {
+        return res.status(404).json({
+          success: false,
+          message: "Topic not found"
+        });
+      }
+      
+      res.json({ success: true, topic });
+    } catch (error) {
+      console.error("Error getting forum topic:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to get forum topic"
+      });
+    }
+  });
+
+  // Get forum posts for a topic
+  app.get("/api/forum/topics/:topicId/posts", async (req: any, res: any) => {
+    try {
+      const { topicId } = req.params;
+      const posts = await storage.getForumPosts(topicId);
+      res.json({ success: true, posts });
+    } catch (error) {
+      console.error("Error getting forum posts:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to get forum posts"
+      });
+    }
+  });
+
+  // Create forum post/reply
+  app.post("/api/forum/topics/:topicId/posts", isAuthenticated, async (req: any, res: any) => {
+    try {
+      const { topicId } = req.params;
+      const { content, parentPostId } = req.body;
+      const userId = req.user.claims.sub;
+
+      const post = await storage.createForumPost({
+        topicId,
+        userId,
+        content,
+        parentPostId: parentPostId || null
+      });
+
+      res.json({ success: true, post });
+    } catch (error) {
+      console.error("Error creating forum post:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to create forum post"
+      });
+    }
+  });
+
+  // Add reaction to post or topic
+  app.post("/api/forum/reactions", isAuthenticated, async (req: any, res: any) => {
+    try {
+      const { postId, topicId, reactionType } = req.body;
+      const userId = req.user.claims.sub;
+
+      // Remove existing reaction first
+      await storage.removeForumReaction(userId, postId, topicId);
+
+      // Add new reaction
+      const reaction = await storage.addForumReaction({
+        userId,
+        postId: postId || null,
+        topicId: topicId || null,
+        reactionType
+      });
+
+      res.json({ success: true, reaction });
+    } catch (error) {
+      console.error("Error adding forum reaction:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to add reaction"
+      });
+    }
+  });
+
   // Create farm adoption
   app.post("/api/adoptions/create", isAuthenticated, async (req, res) => {
     try {

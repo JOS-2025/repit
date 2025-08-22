@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ForumDiscussion } from '@/components/forum-discussion';
 import { 
   BookOpen, 
   Users, 
@@ -106,7 +107,7 @@ interface FarmStory {
 }
 
 export default function Community() {
-  const [activeTab, setActiveTab] = useState('recipes');
+  const [activeTab, setActiveTab] = useState('discussions');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -259,7 +260,11 @@ export default function Community() {
 
         {/* Content Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="discussions" className="flex items-center gap-2">
+              <MessageCircle className="w-4 h-4" />
+              Discussions
+            </TabsTrigger>
             <TabsTrigger value="recipes" className="flex items-center gap-2">
               <ChefHat className="w-4 h-4" />
               Recipes
@@ -273,6 +278,11 @@ export default function Community() {
               Farm Stories
             </TabsTrigger>
           </TabsList>
+
+          {/* Forum Discussions Tab */}
+          <TabsContent value="discussions" className="space-y-6">
+            <ForumDiscussion />
+          </TabsContent>
 
           {/* Recipes Tab */}
           <TabsContent value="recipes" className="space-y-6">

@@ -19,6 +19,10 @@ import {
   nutritionInfo,
   discounts,
   recipes,
+  forumCategories,
+  forumTopics,
+  forumPosts,
+  forumReactions,
   farmAdoptions,
   demandPredictions,
   marketTrends,
@@ -52,7 +56,7 @@ import {
   type InsertFarmerRating,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, asc, lte, gte } from "drizzle-orm";
+import { eq, and, desc, asc, lte, gte, sql } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (required for Replit Auth)
@@ -145,6 +149,16 @@ export interface IStorage {
   // Bulk discount operations
   getBulkDiscountsForProduct(productId: string): Promise<any[]>;
   getBulkDiscountsForFarmer(farmerId: string): Promise<any[]>;
+
+  // Forum operations
+  getForumCategories(): Promise<any[]>;
+  getForumTopics(categoryId?: string): Promise<any[]>;
+  createForumTopic(topic: any): Promise<any>;
+  getForumTopic(topicId: string): Promise<any>;
+  getForumPosts(topicId: string): Promise<any[]>;
+  createForumPost(post: any): Promise<any>;
+  addForumReaction(reaction: any): Promise<any>;
+  removeForumReaction(userId: string, postId?: string, topicId?: string): Promise<void>;
   getCustomerBaskets(customerId: string): Promise<any[]>;
   
   // Nutrition and recipe operations
@@ -980,6 +994,175 @@ export class DatabaseStorage implements IStorage {
         )
       )
       .orderBy(asc(discounts.minQuantity));
+  }
+
+  // ============= FORUM OPERATIONS =============
+
+  async getForumCategories(): Promise<any[]> {
+    return await db
+      .select()
+      .from(forumCategories)
+      .where(eq(forumCategories.isActive, true))
+      .orderBy(asc(forumCategories.sortOrder));
+  }
+
+  async getForumTopics(categoryId?: string): Promise<any[]> {
+    const query = db
+      .select({
+        id: forumTopics.id,
+        categoryId: forumTopics.categoryId,
+        title: forumTopics.title,
+        content: forumTopics.content,
+        slug: forumTopics.slug,
+        isPinned: forumTopics.isPinned,
+        isLocked: forumTopics.isLocked,
+        viewCount: forumTopics.viewCount,
+        replyCount: forumTopics.replyCount,
+        lastReplyAt: forumTopics.lastReplyAt,
+        createdAt: forumTopics.createdAt,
+        updatedAt: forumTopics.updatedAt,
+        user: {
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          profileImageUrl: users.profileImageUrl,
+        },
+        category: {
+          id: forumCategories.id,
+          name: forumCategories.name,
+          slug: forumCategories.slug,
+          color: forumCategories.color,
+        }
+      })
+      .from(forumTopics)
+      .leftJoin(users, eq(forumTopics.userId, users.id))
+      .leftJoin(forumCategories, eq(forumTopics.categoryId, forumCategories.id));
+
+    if (categoryId) {
+      query.where(eq(forumTopics.categoryId, categoryId));
+    }
+
+    return await query
+      .orderBy(desc(forumTopics.isPinned), desc(forumTopics.lastReplyAt), desc(forumTopics.createdAt));
+  }
+
+  async createForumTopic(topic: any): Promise<any> {
+    const [newTopic] = await db
+      .insert(forumTopics)
+      .values(topic)
+      .returning();
+    return newTopic;
+  }
+
+  async getForumTopic(topicId: string): Promise<any> {
+    const [topic] = await db
+      .select({
+        id: forumTopics.id,
+        categoryId: forumTopics.categoryId,
+        title: forumTopics.title,
+        content: forumTopics.content,
+        slug: forumTopics.slug,
+        isPinned: forumTopics.isPinned,
+        isLocked: forumTopics.isLocked,
+        viewCount: forumTopics.viewCount,
+        replyCount: forumTopics.replyCount,
+        lastReplyAt: forumTopics.lastReplyAt,
+        createdAt: forumTopics.createdAt,
+        updatedAt: forumTopics.updatedAt,
+        user: {
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          profileImageUrl: users.profileImageUrl,
+        },
+        category: {
+          id: forumCategories.id,
+          name: forumCategories.name,
+          slug: forumCategories.slug,
+          color: forumCategories.color,
+        }
+      })
+      .from(forumTopics)
+      .leftJoin(users, eq(forumTopics.userId, users.id))
+      .leftJoin(forumCategories, eq(forumTopics.categoryId, forumCategories.id))
+      .where(eq(forumTopics.id, topicId));
+
+    if (topic) {
+      // Increment view count
+      await db
+        .update(forumTopics)
+        .set({ viewCount: sql`${forumTopics.viewCount} + 1` })
+        .where(eq(forumTopics.id, topicId));
+    }
+
+    return topic;
+  }
+
+  async getForumPosts(topicId: string): Promise<any[]> {
+    return await db
+      .select({
+        id: forumPosts.id,
+        topicId: forumPosts.topicId,
+        content: forumPosts.content,
+        parentPostId: forumPosts.parentPostId,
+        isDeleted: forumPosts.isDeleted,
+        editedAt: forumPosts.editedAt,
+        createdAt: forumPosts.createdAt,
+        updatedAt: forumPosts.updatedAt,
+        user: {
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          profileImageUrl: users.profileImageUrl,
+        }
+      })
+      .from(forumPosts)
+      .leftJoin(users, eq(forumPosts.userId, users.id))
+      .where(and(
+        eq(forumPosts.topicId, topicId),
+        eq(forumPosts.isDeleted, false)
+      ))
+      .orderBy(asc(forumPosts.createdAt));
+  }
+
+  async createForumPost(post: any): Promise<any> {
+    const [newPost] = await db
+      .insert(forumPosts)
+      .values(post)
+      .returning();
+
+    // Update topic reply count and last reply time
+    await db
+      .update(forumTopics)
+      .set({
+        replyCount: sql`${forumTopics.replyCount} + 1`,
+        lastReplyAt: new Date(),
+        lastReplyUserId: post.userId
+      })
+      .where(eq(forumTopics.id, post.topicId));
+
+    return newPost;
+  }
+
+  async addForumReaction(reaction: any): Promise<any> {
+    const [newReaction] = await db
+      .insert(forumReactions)
+      .values(reaction)
+      .returning();
+    return newReaction;
+  }
+
+  async removeForumReaction(userId: string, postId?: string, topicId?: string): Promise<void> {
+    const conditions = [eq(forumReactions.userId, userId)];
+    
+    if (postId) {
+      conditions.push(eq(forumReactions.postId, postId));
+    }
+    if (topicId) {
+      conditions.push(eq(forumReactions.topicId, topicId));
+    }
+    
+    await db.delete(forumReactions).where(and(...conditions));
   }
   
   async createCustomerBasket(basket: any): Promise<any> {

@@ -966,6 +966,62 @@ export const sensorReadings = pgTable("sensor_readings", {
   recordedAt: timestamp("recorded_at").defaultNow(),
 });
 
+// ============= COMMUNITY FORUM TABLES =============
+
+// Forum categories
+export const forumCategories = pgTable("forum_categories", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").notNull(),
+  description: text("description"),
+  slug: varchar("slug").notNull().unique(),
+  icon: varchar("icon"), // Icon class or emoji
+  color: varchar("color").default("#10b981"), // Tailwind color
+  isActive: boolean("is_active").default(true).notNull(),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Forum topics/threads
+export const forumTopics = pgTable("forum_topics", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  categoryId: varchar("category_id").references(() => forumCategories.id).notNull(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  title: varchar("title").notNull(),
+  content: text("content").notNull(),
+  slug: varchar("slug").notNull().unique(),
+  isPinned: boolean("is_pinned").default(false).notNull(),
+  isLocked: boolean("is_locked").default(false).notNull(),
+  viewCount: integer("view_count").default(0),
+  replyCount: integer("reply_count").default(0),
+  lastReplyAt: timestamp("last_reply_at"),
+  lastReplyUserId: varchar("last_reply_user_id").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Forum posts/replies
+export const forumPosts = pgTable("forum_posts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  topicId: varchar("topic_id").references(() => forumTopics.id).notNull(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  content: text("content").notNull(),
+  parentPostId: varchar("parent_post_id").references(() => forumPosts.id), // For nested replies
+  isDeleted: boolean("is_deleted").default(false).notNull(),
+  editedAt: timestamp("edited_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Forum reactions (likes, helpful, etc.)
+export const forumReactions = pgTable("forum_reactions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  postId: varchar("post_id").references(() => forumPosts.id),
+  topicId: varchar("topic_id").references(() => forumTopics.id),
+  reactionType: varchar("reaction_type").notNull(), // like, helpful, heart, thumbs_up
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // ============= EXPANDED TYPES =============
 
 export type EscrowTransaction = typeof escrowTransactions.$inferSelect;
@@ -985,3 +1041,11 @@ export type DemandPrediction = typeof demandPredictions.$inferSelect;
 export type BlockchainRecord = typeof blockchainRecords.$inferSelect;
 export type IoTSensor = typeof iotSensors.$inferSelect;
 export type SensorReading = typeof sensorReadings.$inferSelect;
+export type ForumCategory = typeof forumCategories.$inferSelect;
+export type InsertForumCategory = typeof forumCategories.$inferInsert;
+export type ForumTopic = typeof forumTopics.$inferSelect;
+export type InsertForumTopic = typeof forumTopics.$inferInsert;
+export type ForumPost = typeof forumPosts.$inferSelect;
+export type InsertForumPost = typeof forumPosts.$inferInsert;
+export type ForumReaction = typeof forumReactions.$inferSelect;
+export type InsertForumReaction = typeof forumReactions.$inferInsert;
