@@ -23,6 +23,31 @@ const About = () => {
           <li>Fast and secure delivery</li>
           <li>Eco-friendly sourcing</li>
         </ul>
+        
+        <div className="mt-12 bg-white rounded-lg shadow-sm border p-8 text-center">
+          <h3 className="text-2xl font-bold text-gray-900 mb-4" data-testid="text-cta-title">
+            Join Our Community
+          </h3>
+          <p className="text-gray-600 mb-6" data-testid="text-cta-description">
+            Start selling your fresh produce or access farm-fresh products today
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <button
+              onClick={() => window.location.href = "/api/login"}
+              className="bg-farm-green text-white px-8 py-3 rounded-lg font-medium hover:bg-farm-green-dark transition-colors"
+              data-testid="button-register-farmer"
+            >
+              Register as a Farmer
+            </button>
+            <button
+              onClick={() => window.location.href = "/api/login"}
+              className="bg-white text-farm-green border-2 border-farm-green px-8 py-3 rounded-lg font-medium hover:bg-farm-green hover:text-white transition-colors"
+              data-testid="button-farmer-login"
+            >
+              Already a Farmer? Log In
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
