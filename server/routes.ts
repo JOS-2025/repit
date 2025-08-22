@@ -10,8 +10,19 @@ import {
   insertOrderSchema,
   insertOrderItemSchema,
   insertCartItemSchema,
-  insertSimpleOrderSchema
+  insertSimpleOrderSchema,
+  insertFarmerRatingSchema
 } from "@shared/schema";
+import { 
+  strictRateLimit, 
+  validateFileUpload, 
+  validationSchemas, 
+  handleValidationErrors,
+  securityLogger,
+  SECURITY_CONFIG 
+} from "./security";
+import { body } from "express-validator";
+import { autoAuditMiddleware, getSecurityDashboard } from "./securityAudit";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -33,17 +44,23 @@ const storage_multer = multer.diskStorage({
 
 const upload = multer({ 
   storage: storage_multer,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  limits: { 
+    fileSize: SECURITY_CONFIG.MAX_FILE_SIZE,
+    files: 5
+  },
   fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) {
+    if (SECURITY_CONFIG.ALLOWED_FILE_TYPES.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Only image files are allowed!'));
+      cb(new Error('Invalid file type. Only images are allowed.'));
     }
   }
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Security audit middleware
+  app.use('/api/', autoAuditMiddleware);
+  
   // Auth middleware
   await setupAuth(app);
 
@@ -54,6 +71,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      securityLogger.logDataAccess(userId, 'user profile', 'read');
+      
       const user = await storage.getUser(userId);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
@@ -111,21 +130,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Farmer routes (authenticated)
-  app.post('/api/farmers', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const farmerData = insertFarmerSchema.parse({
-        ...req.body,
-        userId
-      });
+  // Farmer registration with enhanced validation and rate limiting
+  app.post('/api/farmers', 
+    strictRateLimit,
+    isAuthenticated,
+    [
+      validationSchemas.shortString('farmName', 2, 100),
+      validationSchemas.shortString('location', 2, 100),
+      validationSchemas.positiveNumber('farmSize'),
+      validationSchemas.longString('description', 10, 500),
+      validationSchemas.phoneNumber,
+      validationSchemas.email,
+      validationSchemas.url('website').optional()
+    ],
+    handleValidationErrors,
+    async (req: any, res: any) => {
+      try {
+        const userId = req.user.claims.sub;
+        
+        // Check if user already has a farmer profile
+        const existingFarmer = await storage.getFarmerByUserId(userId);
+        if (existingFarmer) {
+          return res.status(409).json({ message: "Farmer profile already exists" });
+        }
+        
+        securityLogger.logDataAccess(userId, 'farmer profile', 'create');
+        
+        const farmerData = insertFarmerSchema.parse({
+          ...req.body,
+          userId
+        });
 
-      const farmer = await storage.createFarmer(farmerData);
-      res.json(farmer);
-    } catch (error) {
-      console.error("Error creating farmer:", error);
-      res.status(500).json({ message: "Failed to create farmer profile" });
+        const farmer = await storage.createFarmer(farmerData);
+        res.json(farmer);
+      } catch (error) {
+        console.error("Error creating farmer:", error);
+        res.status(500).json({ message: "Failed to create farmer profile" });
+      }
     }
-  });
+  );
 
   app.get('/api/farmers/:id', async (req, res) => {
     try {
@@ -140,26 +183,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/farmers/:id", isAuthenticated, async (req, res) => {
-    try {
-      const farmer = await storage.getFarmer(req.params.id);
-      if (!farmer) {
-        return res.status(404).json({ message: "Farmer not found" });
-      }
-      
-      // Verify ownership
-      const userId = (req.user as any)?.claims?.sub;
-      if (farmer.userId !== userId) {
-        return res.status(403).json({ message: "Unauthorized" });
-      }
+  // Farmer profile update with enhanced security
+  app.put("/api/farmers/:id", 
+    isAuthenticated,
+    [
+      validationSchemas.mongoId,
+      validationSchemas.shortString('farmName', 2, 100).optional(),
+      validationSchemas.shortString('location', 2, 100).optional(),
+      validationSchemas.positiveNumber('farmSize').optional(),
+      validationSchemas.longString('description', 10, 500).optional(),
+      validationSchemas.phoneNumber.optional(),
+      validationSchemas.email.optional(),
+      validationSchemas.url('website').optional()
+    ],
+    handleValidationErrors,
+    async (req: any, res: any) => {
+      try {
+        const farmer = await storage.getFarmer(req.params.id);
+        if (!farmer) {
+          return res.status(404).json({ message: "Farmer not found" });
+        }
+        
+        // Verify ownership
+        const userId = (req.user as any)?.claims?.sub;
+        if (farmer.userId !== userId) {
+          securityLogger.logSuspiciousActivity(req, 'Unauthorized farmer profile update attempt', { 
+            farmerId: req.params.id, 
+            userId 
+          });
+          return res.status(403).json({ message: "Unauthorized" });
+        }
 
-      const updatedFarmer = await storage.updateFarmer(req.params.id, req.body);
-      res.json(updatedFarmer);
-    } catch (error) {
-      console.error("Error updating farmer:", error);
-      res.status(500).json({ message: "Failed to update farmer" });
+        securityLogger.logDataAccess(userId, `farmer profile ${req.params.id}`, 'update');
+        
+        const updatedFarmer = await storage.updateFarmer(req.params.id, req.body);
+        res.json(updatedFarmer);
+      } catch (error) {
+        console.error("Error updating farmer:", error);
+        res.status(500).json({ message: "Failed to update farmer" });
+      }
     }
-  });
+  );
 
   app.get("/api/farmers/:id/products", async (req, res) => {
     try {
@@ -440,32 +504,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/products', isAuthenticated, upload.array('images', 5), async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const farmer = await storage.getFarmerByUserId(userId);
-      
-      if (!farmer) {
-        return res.status(403).json({ message: "Only farmers can add products" });
+  // Product creation with enhanced security
+  app.post('/api/products', 
+    strictRateLimit,
+    isAuthenticated, 
+    upload.array('images', 5),
+    validateFileUpload,
+    [
+      validationSchemas.shortString('name', 2, 100),
+      validationSchemas.longString('description', 10, 500),
+      validationSchemas.shortString('category', 2, 50),
+      validationSchemas.positiveNumber('price'),
+      validationSchemas.shortString('unit', 1, 20),
+      validationSchemas.positiveNumber('availableQuantity')
+    ],
+    handleValidationErrors,
+    async (req: any, res: any) => {
+      try {
+        const userId = req.user.claims.sub;
+        const farmer = await storage.getFarmerByUserId(userId);
+        
+        if (!farmer) {
+          securityLogger.logSuspiciousActivity(req, 'Non-farmer attempted to create product', { userId });
+          return res.status(403).json({ message: "Only farmers can add products" });
+        }
+
+        securityLogger.logDataAccess(userId, 'product', 'create');
+
+        const images = (req.files as Express.Multer.File[])?.map(file => `/uploads/${file.filename}`) || [];
+        
+        const productData = insertProductSchema.parse({
+          ...req.body,
+          farmerId: farmer.id,
+          images,
+          price: parseFloat(req.body.price),
+          availableQuantity: parseInt(req.body.availableQuantity),
+          harvestDate: req.body.harvestDate ? new Date(req.body.harvestDate) : null,
+        });
+
+        const product = await storage.createProduct(productData);
+        res.json(product);
+      } catch (error) {
+        console.error("Error creating product:", error);
+        res.status(500).json({ message: "Failed to create product" });
       }
-
-      const images = (req.files as Express.Multer.File[])?.map(file => `/uploads/${file.filename}`) || [];
-      
-      const productData = insertProductSchema.parse({
-        ...req.body,
-        farmerId: farmer.id,
-        images,
-        price: parseFloat(req.body.price),
-        availableQuantity: parseInt(req.body.availableQuantity),
-        harvestDate: req.body.harvestDate ? new Date(req.body.harvestDate) : null,
-      });
-
-      const product = await storage.createProduct(productData);
-      res.json(product);
-    } catch (error) {
-      console.error("Error creating product:", error);
-      res.status(500).json({ message: "Failed to create product" });
-    }
   });
 
   app.get('/api/farmers/:farmerId/products', async (req, res) => {
@@ -579,39 +661,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Order routes
-  app.post('/api/orders', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const { items, ...orderData } = req.body;
+  // Order creation with enhanced validation
+  app.post('/api/orders', 
+    strictRateLimit,
+    isAuthenticated,
+    [
+      validationSchemas.shortString('deliveryAddress', 10, 200),
+      validationSchemas.positiveNumber('totalAmount'),
+      body('items').isArray({ min: 1 }).withMessage('Orders must contain at least one item')
+    ],
+    handleValidationErrors,
+    async (req: any, res: any) => {
+      try {
+        const userId = req.user.claims.sub;
+        const { items, ...orderData } = req.body;
 
-      const orderToCreate = insertOrderSchema.parse({
-        ...orderData,
-        customerId: userId,
-        totalAmount: parseFloat(orderData.totalAmount),
-      });
+        // Validate order items
+        if (!Array.isArray(items) || items.length === 0) {
+          return res.status(400).json({ message: "Orders must contain at least one item" });
+        }
 
-      const order = await storage.createOrder(orderToCreate);
+        securityLogger.logDataAccess(userId, 'order', 'create');
 
-      // Create order items
-      for (const item of items) {
-        const orderItemData = insertOrderItemSchema.parse({
-          orderId: order.id,
-          productId: item.productId,
-          quantity: item.quantity,
-          pricePerUnit: parseFloat(item.pricePerUnit),
+        const orderToCreate = insertOrderSchema.parse({
+          ...orderData,
+          customerId: userId,
+          totalAmount: parseFloat(orderData.totalAmount),
         });
-        await storage.createOrderItem(orderItemData);
+
+        const order = await storage.createOrder(orderToCreate);
+
+        // Create order items with validation
+        for (const item of items) {
+          const orderItemData = insertOrderItemSchema.parse({
+            orderId: order.id,
+            productId: item.productId,
+            quantity: item.quantity,
+            pricePerUnit: parseFloat(item.pricePerUnit),
+          });
+          await storage.createOrderItem(orderItemData);
+        }
+
+        // Clear cart
+        await storage.clearCart(userId);
+
+        const fullOrder = await storage.getOrder(order.id);
+        res.json(fullOrder);
+      } catch (error) {
+        console.error("Error creating order:", error);
+        res.status(500).json({ message: "Failed to create order" });
       }
-
-      // Clear cart
-      await storage.clearCart(userId);
-
-      const fullOrder = await storage.getOrder(order.id);
-      res.json(fullOrder);
-    } catch (error) {
-      console.error("Error creating order:", error);
-      res.status(500).json({ message: "Failed to create order" });
-    }
   });
 
   // Simple order route (no authentication required)
