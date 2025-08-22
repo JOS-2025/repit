@@ -2,6 +2,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import { useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import ShoppingCart from "@/components/shopping-cart";
 import LanguageToggle from "@/components/language-toggle";
@@ -18,6 +20,44 @@ export default function Navigation() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const [location] = useLocation();
   const { t } = useLanguage();
+  const { toast } = useToast();
+
+  // Handle login error messages from URL parameters
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const error = urlParams.get('error');
+    
+    if (error) {
+      let message = "Login failed. Please try again.";
+      
+      switch (error) {
+        case 'auth_failed':
+          message = "Authentication failed. Please check your credentials.";
+          break;
+        case 'no_user':
+          message = "Login verification failed. Please try again.";
+          break;
+        case 'session_failed':
+          message = "Session creation failed. Please clear cookies and try again.";
+          break;
+        case 'callback_failed':
+          message = "Login callback failed. Please try again later.";
+          break;
+        default:
+          message = "Login failed. Please try again.";
+      }
+      
+      toast({
+        title: "Login Error",
+        description: message,
+        variant: "destructive",
+      });
+      
+      // Clean up URL by removing error parameter
+      const cleanUrl = window.location.pathname;
+      window.history.replaceState({}, '', cleanUrl);
+    }
+  }, [toast]);
 
 
   return (

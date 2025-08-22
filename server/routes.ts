@@ -70,13 +70,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
+      console.log("[AUTH] Fetching user data for authenticated user");
       const userId = req.user.claims.sub;
       securityLogger.logDataAccess(userId, 'user profile', 'read');
       
       const user = await storage.getUser(userId);
       if (!user) {
+        console.log("[AUTH] User not found in database:", userId);
         return res.status(404).json({ message: "User not found" });
       }
+      console.log("[AUTH] User data fetched successfully");
       
       // Check if user is also a farmer
       const farmer = await storage.getFarmerByUserId(userId);
@@ -85,10 +88,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...user,
         farmer: farmer || null
       });
-    } catch (error) {
-      console.error("Error fetching user:", error);
-      res.status(500).json({ message: "Failed to fetch user" });
+    } catch (error: any) {
+      console.error("[AUTH] Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user", error: error.message });
     }
+  });
+
+  // Health check endpoint for authentication
+  app.get('/api/auth/status', (req, res) => {
+    const authStatus = {
+      authenticated: req.isAuthenticated(),
+      session: !!req.session,
+      sessionID: req.sessionID?.substring(0, 8) + '...',
+      user: req.user ? 'present' : 'absent',
+      timestamp: new Date().toISOString()
+    };
+    console.log("[AUTH] Status check:", authStatus);
+    res.json(authStatus);
   });
 
   // Public farmer registration endpoint (no auth required)
