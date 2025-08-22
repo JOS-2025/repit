@@ -72,7 +72,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Farmer routes
+  // Public farmer registration endpoint (no auth required)
+  app.post('/api/register-farmer', upload.single('farmImage'), async (req, res) => {
+    try {
+      const { fullName, phoneNumber, email, farmLocation, farmType } = req.body;
+      const farmImage = req.file;
+
+      if (!fullName || !phoneNumber || !email || !farmLocation || !farmType) {
+        return res.status(400).json({ message: "All fields are required" });
+      }
+
+      // Create a temporary farmer registration record
+      // In a real app, this might go to a separate "farmer_applications" table for approval
+      const farmerRegistrationData = {
+        farmName: `${fullName}'s ${farmType} Farm`,
+        location: farmLocation,
+        farmSize: null, // Will be filled later
+        description: `${farmType} farm operated by ${fullName}. Contact: ${phoneNumber}, ${email}`,
+        isVerified: false, // Needs approval
+        phoneNumber,
+        email,
+        farmType,
+        imageUrl: farmImage ? `/uploads/${farmImage.filename}` : null
+      };
+
+      // For now, store the registration data (in production, this would be a pending applications table)
+      // Since we don't have a user ID yet, we'll create a placeholder
+      console.log("Farmer registration received:", farmerRegistrationData);
+      
+      res.json({ 
+        message: "Registration successful! Your application will be reviewed and you'll be contacted soon.",
+        data: farmerRegistrationData 
+      });
+    } catch (error) {
+      console.error("Error processing farmer registration:", error);
+      res.status(500).json({ message: "Failed to process registration" });
+    }
+  });
+
+  // Farmer routes (authenticated)
   app.post('/api/farmers', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
