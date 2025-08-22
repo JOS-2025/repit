@@ -1067,6 +1067,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get bulk discounts for a product
+  app.get("/api/products/:productId/bulk-discounts", async (req: any, res: any) => {
+    try {
+      const { productId } = req.params;
+      const discounts = await storage.getBulkDiscountsForProduct(productId);
+      res.json({ success: true, discounts });
+    } catch (error) {
+      console.error("Error getting bulk discounts:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to get bulk discounts"
+      });
+    }
+  });
+
+  // Get bulk discounts for a farmer
+  app.get("/api/farmers/:farmerId/bulk-discounts", async (req: any, res: any) => {
+    try {
+      const { farmerId } = req.params;
+      const discounts = await storage.getBulkDiscountsForFarmer(farmerId);
+      res.json({ success: true, discounts });
+    } catch (error) {
+      console.error("Error getting farmer bulk discounts:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to get bulk discounts"
+      });
+    }
+  });
+
   // Create farm adoption
   app.post("/api/adoptions/create", isAuthenticated, async (req, res) => {
     try {

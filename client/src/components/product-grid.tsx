@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import PriceComparison from "@/components/price-comparison";
 import SubscriptionOrders from "@/components/subscription-orders";
+import { BulkPricing } from "@/components/bulk-pricing";
 
 interface ProductGridProps {
   products: any[];
@@ -173,6 +174,14 @@ export default function ProductGrid({ products, isLoading, showLoginPrompt }: Pr
                         farmerId={product.farmerId}
                       />
                     </div>
+
+                    {/* Bulk Pricing */}
+                    <BulkPricing
+                      productId={product.id}
+                      basePrice={parseFloat(product.price || 0)}
+                      unit={product.unit}
+                      className="mt-2"
+                    />
                     
                     {/* Subscription Orders */}
                     <SubscriptionOrders

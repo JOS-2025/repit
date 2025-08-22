@@ -17,6 +17,7 @@ import {
   basketTemplates,
   customerBaskets,
   nutritionInfo,
+  discounts,
   recipes,
   farmAdoptions,
   demandPredictions,
@@ -51,7 +52,7 @@ import {
   type InsertFarmerRating,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, asc } from "drizzle-orm";
+import { eq, and, desc, asc, lte, gte } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (required for Replit Auth)
@@ -140,6 +141,10 @@ export interface IStorage {
   createBasketTemplate(basket: any): Promise<any>;
   getBasketTemplates(): Promise<any[]>;
   createCustomerBasket(basket: any): Promise<any>;
+
+  // Bulk discount operations
+  getBulkDiscountsForProduct(productId: string): Promise<any[]>;
+  getBulkDiscountsForFarmer(farmerId: string): Promise<any[]>;
   getCustomerBaskets(customerId: string): Promise<any[]>;
   
   // Nutrition and recipe operations
@@ -939,6 +944,42 @@ export class DatabaseStorage implements IStorage {
       .from(basketTemplates)
       .where(eq(basketTemplates.isActive, true))
       .orderBy(desc(basketTemplates.createdAt));
+  }
+
+  // ============= BULK DISCOUNT OPERATIONS =============
+  
+  async getBulkDiscountsForProduct(productId: string): Promise<any[]> {
+    const now = new Date();
+    return await db
+      .select()
+      .from(discounts)
+      .where(
+        and(
+          eq(discounts.productId, productId),
+          eq(discounts.discountType, 'bulk'),
+          eq(discounts.isActive, true),
+          lte(discounts.startDate, now),
+          gte(discounts.endDate, now)
+        )
+      )
+      .orderBy(asc(discounts.minQuantity));
+  }
+
+  async getBulkDiscountsForFarmer(farmerId: string): Promise<any[]> {
+    const now = new Date();
+    return await db
+      .select()
+      .from(discounts)
+      .where(
+        and(
+          eq(discounts.farmerId, farmerId),
+          eq(discounts.discountType, 'bulk'),
+          eq(discounts.isActive, true),
+          lte(discounts.startDate, now),
+          gte(discounts.endDate, now)
+        )
+      )
+      .orderBy(asc(discounts.minQuantity));
   }
   
   async createCustomerBasket(basket: any): Promise<any> {
