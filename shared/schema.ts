@@ -409,7 +409,9 @@ export const messageNotifications = pgTable("message_notifications", {
 });
 
 export type UpsertUser = typeof users.$inferInsert;
-export type User = typeof users.$inferSelect;
+export type User = typeof users.$inferSelect & {
+  farmer?: typeof farmers.$inferSelect | null;
+};
 export type InsertFarmer = z.infer<typeof insertFarmerSchema>;
 export type Farmer = typeof farmers.$inferSelect;
 export type InsertFarmerRating = z.infer<typeof insertFarmerRatingSchema>;
@@ -1005,7 +1007,7 @@ export const forumPosts = pgTable("forum_posts", {
   topicId: varchar("topic_id").references(() => forumTopics.id).notNull(),
   userId: varchar("user_id").references(() => users.id).notNull(),
   content: text("content").notNull(),
-  parentPostId: varchar("parent_post_id").references(() => forumPosts.id), // For nested replies
+  parentPostId: varchar("parent_post_id").references((): any => forumPosts.id), // For nested replies
   isDeleted: boolean("is_deleted").default(false).notNull(),
   editedAt: timestamp("edited_at"),
   createdAt: timestamp("created_at").defaultNow(),

@@ -6,6 +6,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import Navigation from "@/components/navigation";
 import ProductUpload from "@/components/product-upload";
+import FileUpload from "@/components/file-upload";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -54,13 +55,13 @@ export default function FarmerDashboard() {
     }
   }, [user]);
 
-  const { data: farmerProducts = [], isLoading: productsLoading } = useQuery({
+  const { data: farmerProducts = [], isLoading: productsLoading } = useQuery<any[]>({
     queryKey: ["/api/farmers", user?.farmer?.id, "products"],
     enabled: !!user?.farmer?.id,
     retry: false,
   });
 
-  const { data: farmerOrders = [], isLoading: ordersLoading } = useQuery({
+  const { data: farmerOrders = [], isLoading: ordersLoading } = useQuery<any[]>({
     queryKey: ["/api/orders/farmer"],
     enabled: !!user?.farmer,
     retry: false,
