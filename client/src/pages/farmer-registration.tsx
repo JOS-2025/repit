@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -51,133 +50,156 @@ export default function FarmerRegistration() {
   };
 
   return (
-    <div style={{ 
-      fontFamily: 'Arial, sans-serif',
-      margin: 0,
-      padding: 0,
-      background: '#f8f9fa',
-      color: '#333',
-      minHeight: '100vh'
-    }}>
-      <header style={{
-        background: '#16a34a',
-        color: '#fff',
-        textAlign: 'center',
-        padding: '20px',
-        fontSize: '24px',
-        fontWeight: 'bold'
-      }}>
-        FarmCart – Become a Farmer
-      </header>
+    <>
+      <style>{`
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #f8f9fa;
+            color: #333;
+        }
+        .farmer-header {
+            background: #16a34a;
+            color: #fff;
+            text-align: center;
+            padding: 20px;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        .farmer-container {
+            max-width: 900px;
+            margin: 30px auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        .farmer-h1 {
+            color: #16a34a;
+            text-align: center;
+        }
+        .farmer-intro {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .farmer-benefits {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .farmer-benefit-card {
+            background: #e7f8ed;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: bold;
+        }
+        .farmer-form {
+            margin-top: 20px;
+        }
+        .farmer-input, .farmer-select {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        .farmer-button {
+            background: #16a34a;
+            color: #fff;
+            border: none;
+            padding: 14px;
+            width: 100%;
+            font-size: 18px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .farmer-button:hover {
+            background: #128c3f;
+        }
+        .farmer-button:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+        .farmer-steps {
+            margin: 30px 0;
+            text-align: center;
+        }
+        .farmer-steps h2 {
+            color: #16a34a;
+            margin-bottom: 10px;
+        }
+        .farmer-steps ul {
+            list-style: none;
+            padding: 0;
+        }
+        .farmer-steps ul li {
+            margin: 10px 0;
+            font-size: 18px;
+        }
+        .farmer-cta {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .farmer-cta a {
+            display: inline-block;
+            background: #16a34a;
+            color: #fff;
+            padding: 12px 20px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .farmer-cta a:hover {
+            background: #128c3f;
+        }
+        .farmer-error {
+            color: #ef4444;
+            font-size: 14px;
+            margin: 0 0 8px 0;
+        }
+      `}</style>
 
-      <div style={{
-        maxWidth: '900px',
-        margin: '30px auto',
-        background: '#fff',
-        padding: '20px',
-        borderRadius: '12px',
-        boxShadow: '0 4px 10px rgba(0,0,0,0.1)'
-      }}>
-        <h1 style={{
-          color: '#16a34a',
-          textAlign: 'center'
-        }}>
-          Join FarmCart Today!
-        </h1>
-        <p style={{
-          textAlign: 'center',
-          marginBottom: '20px'
-        }}>
-          Sell your fresh produce directly to customers. No middlemen, better profits!
-        </p>
+      <div className="farmer-header">FarmCart – Become a Farmer</div>
+
+      <div className="farmer-container">
+        <h1 className="farmer-h1">Join FarmCart Today!</h1>
+        <p className="farmer-intro">Sell your fresh produce directly to customers. No middlemen, better profits!</p>
 
         <h2>Benefits of Joining</h2>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-          gap: '15px',
-          margin: '20px 0'
-        }}>
-          <div style={{
-            background: '#e7f8ed',
-            padding: '15px',
-            borderRadius: '8px',
-            textAlign: 'center',
-            fontWeight: 'bold'
-          }}>
-            ✅ Higher Profit Margins
-          </div>
-          <div style={{
-            background: '#e7f8ed',
-            padding: '15px',
-            borderRadius: '8px',
-            textAlign: 'center',
-            fontWeight: 'bold'
-          }}>
-            ✅ Instant Payments (M-Pesa)
-          </div>
-          <div style={{
-            background: '#e7f8ed',
-            padding: '15px',
-            borderRadius: '8px',
-            textAlign: 'center',
-            fontWeight: 'bold'
-          }}>
-            ✅ Wide Customer Reach
-          </div>
-          <div style={{
-            background: '#e7f8ed',
-            padding: '15px',
-            borderRadius: '8px',
-            textAlign: 'center',
-            fontWeight: 'bold'
-          }}>
-            ✅ Free Marketing Support
-          </div>
+        <div className="farmer-benefits">
+          <div className="farmer-benefit-card">✅ Higher Profit Margins</div>
+          <div className="farmer-benefit-card">✅ Instant Payments (M-Pesa)</div>
+          <div className="farmer-benefit-card">✅ Wide Customer Reach</div>
+          <div className="farmer-benefit-card">✅ Free Marketing Support</div>
         </div>
 
         <h2>Registration Form</h2>
-        <form onSubmit={handleSubmit(onSubmit)} style={{ marginTop: '20px' }}>
+        <form onSubmit={handleSubmit(onSubmit)} className="farmer-form">
           <input
             {...register("fullName", { required: "Full name is required" })}
             type="text"
             placeholder="Full Name"
-            style={{
-              width: '100%',
-              padding: '12px',
-              margin: '8px 0',
-              borderRadius: '6px',
-              border: '1px solid #ccc',
-              fontSize: '16px',
-              boxSizing: 'border-box'
-            }}
+            className="farmer-input"
             data-testid="input-full-name"
           />
           {errors.fullName && (
-            <p style={{ color: '#ef4444', fontSize: '14px', margin: '0 0 8px 0' }}>
-              {errors.fullName.message}
-            </p>
+            <p className="farmer-error">{errors.fullName.message}</p>
           )}
 
           <input
             {...register("phoneNumber", { required: "Phone number is required" })}
             type="tel"
             placeholder="Phone Number"
-            style={{
-              width: '100%',
-              padding: '12px',
-              margin: '8px 0',
-              borderRadius: '6px',
-              border: '1px solid #ccc',
-              fontSize: '16px',
-              boxSizing: 'border-box'
-            }}
+            className="farmer-input"
             data-testid="input-phone"
           />
           {errors.phoneNumber && (
-            <p style={{ color: '#ef4444', fontSize: '14px', margin: '0 0 8px 0' }}>
-              {errors.phoneNumber.message}
-            </p>
+            <p className="farmer-error">{errors.phoneNumber.message}</p>
           )}
 
           <input
@@ -190,55 +212,27 @@ export default function FarmerRegistration() {
             })}
             type="email"
             placeholder="Email Address"
-            style={{
-              width: '100%',
-              padding: '12px',
-              margin: '8px 0',
-              borderRadius: '6px',
-              border: '1px solid #ccc',
-              fontSize: '16px',
-              boxSizing: 'border-box'
-            }}
+            className="farmer-input"
             data-testid="input-email"
           />
           {errors.email && (
-            <p style={{ color: '#ef4444', fontSize: '14px', margin: '0 0 8px 0' }}>
-              {errors.email.message}
-            </p>
+            <p className="farmer-error">{errors.email.message}</p>
           )}
 
           <input
             {...register("farmLocation", { required: "Farm location is required" })}
             type="text"
             placeholder="Farm Location"
-            style={{
-              width: '100%',
-              padding: '12px',
-              margin: '8px 0',
-              borderRadius: '6px',
-              border: '1px solid #ccc',
-              fontSize: '16px',
-              boxSizing: 'border-box'
-            }}
+            className="farmer-input"
             data-testid="input-farm-location"
           />
           {errors.farmLocation && (
-            <p style={{ color: '#ef4444', fontSize: '14px', margin: '0 0 8px 0' }}>
-              {errors.farmLocation.message}
-            </p>
+            <p className="farmer-error">{errors.farmLocation.message}</p>
           )}
           
           <select
             {...register("farmType", { required: "Please select farm type" })}
-            style={{
-              width: '100%',
-              padding: '12px',
-              margin: '8px 0',
-              borderRadius: '6px',
-              border: '1px solid #ccc',
-              fontSize: '16px',
-              boxSizing: 'border-box'
-            }}
+            className="farmer-select"
             data-testid="select-farm-type"
           >
             <option value="">Select Farm Type</option>
@@ -248,129 +242,44 @@ export default function FarmerRegistration() {
             <option value="livestock">Livestock</option>
           </select>
           {errors.farmType && (
-            <p style={{ color: '#ef4444', fontSize: '14px', margin: '0 0 8px 0' }}>
-              {errors.farmType.message}
-            </p>
+            <p className="farmer-error">{errors.farmType.message}</p>
           )}
 
           <input
             {...register("farmImage", { required: "Farm image is required" })}
             type="file"
             accept="image/*"
-            style={{
-              width: '100%',
-              padding: '12px',
-              margin: '8px 0',
-              borderRadius: '6px',
-              border: '1px solid #ccc',
-              fontSize: '16px',
-              boxSizing: 'border-box'
-            }}
+            className="farmer-input"
             data-testid="input-farm-image"
           />
           {errors.farmImage && (
-            <p style={{ color: '#ef4444', fontSize: '14px', margin: '0 0 8px 0' }}>
-              {errors.farmImage.message}
-            </p>
+            <p className="farmer-error">{errors.farmImage.message}</p>
           )}
 
           <button
             type="submit"
             disabled={registerFarmerMutation.isPending}
-            style={{
-              background: registerFarmerMutation.isPending ? '#9ca3af' : '#16a34a',
-              color: '#fff',
-              border: 'none',
-              padding: '14px',
-              width: '100%',
-              fontSize: '18px',
-              borderRadius: '8px',
-              cursor: registerFarmerMutation.isPending ? 'not-allowed' : 'pointer'
-            }}
-            onMouseEnter={(e) => {
-              if (!registerFarmerMutation.isPending) {
-                e.currentTarget.style.background = '#128c3f';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!registerFarmerMutation.isPending) {
-                e.currentTarget.style.background = '#16a34a';
-              }
-            }}
+            className="farmer-button"
             data-testid="button-register-farmer"
           >
             {registerFarmerMutation.isPending ? 'Registering...' : 'Register as a Farmer'}
           </button>
         </form>
 
-        <div style={{
-          margin: '30px 0',
-          textAlign: 'center'
-        }}>
-          <h2 style={{
-            color: '#16a34a',
-            marginBottom: '10px'
-          }}>
-            How It Works
-          </h2>
-          <ul style={{
-            listStyle: 'none',
-            padding: 0
-          }}>
-            <li style={{
-              margin: '10px 0',
-              fontSize: '18px'
-            }}>
-              ✅ Sign Up as a Farmer
-            </li>
-            <li style={{
-              margin: '10px 0',
-              fontSize: '18px'
-            }}>
-              ✅ Add Your Products
-            </li>
-            <li style={{
-              margin: '10px 0',
-              fontSize: '18px'
-            }}>
-              ✅ Start Selling
-            </li>
-            <li style={{
-              margin: '10px 0',
-              fontSize: '18px'
-            }}>
-              ✅ Get Paid Instantly
-            </li>
+        <div className="farmer-steps">
+          <h2>How It Works</h2>
+          <ul>
+            <li>✅ Sign Up as a Farmer</li>
+            <li>✅ Add Your Products</li>
+            <li>✅ Start Selling</li>
+            <li>✅ Get Paid Instantly</li>
           </ul>
         </div>
 
-        <div style={{
-          textAlign: 'center',
-          marginTop: '20px'
-        }}>
-          <a
-            href="/api/login"
-            style={{
-              display: 'inline-block',
-              background: '#16a34a',
-              color: '#fff',
-              padding: '12px 20px',
-              borderRadius: '6px',
-              textDecoration: 'none',
-              fontWeight: 'bold'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = '#128c3f';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = '#16a34a';
-            }}
-            data-testid="link-farmer-login"
-          >
-            Already a Farmer? Log in
-          </a>
+        <div className="farmer-cta">
+          <a href="/api/login">Already a Farmer? Log in</a>
         </div>
       </div>
-    </div>
+    </>
   );
 }
