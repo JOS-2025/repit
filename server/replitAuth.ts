@@ -46,7 +46,8 @@ export function getSession() {
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax' as const,
       maxAge: sessionTtl,
     },
     // Add session error handling
@@ -94,7 +95,7 @@ async function upsertUser(
     });
     
     console.log("[AUTH] User upserted successfully");
-  } catch (error) {
+  } catch (error: any) {
     console.error("[AUTH] Error upserting user:", error);
     throw new Error(`Failed to save user data: ${error.message}`);
   }
@@ -112,17 +113,12 @@ export async function setupAuth(app: Express) {
     tokens: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers,
     verified: passport.AuthenticateCallback
   ) => {
-    try {
-      console.log("[AUTH] Verify function called with user claims:", tokens.claims());
-      const user = {};
-      updateUserSession(user, tokens);
-      await upsertUser(tokens.claims());
-      console.log("[AUTH] User session created successfully");
-      verified(null, user);
-    } catch (error: any) {
-      console.error("[AUTH] Error in verify function:", error);
-      verified(error, false);
-    }
+    console.log("[AUTH] Verify function called");
+    const user = {};
+    updateUserSession(user, tokens);
+    await upsertUser(tokens.claims());
+    console.log("[AUTH] User authenticated successfully");
+    verified(null, user);
   };
 
   for (const domain of process.env
@@ -144,68 +140,24 @@ export async function setupAuth(app: Express) {
 
   app.get("/api/login", (req, res, next) => {
     console.log("[AUTH] Login attempt for hostname:", req.hostname);
-    console.log("[AUTH] Available strategies:", Object.keys((passport as any)._strategies || {}));
     
     const strategyName = `replitauth:${req.hostname}`;
     console.log("[AUTH] Using strategy:", strategyName);
     
-    try {
-      passport.authenticate(strategyName, {
-        prompt: "login consent",
-        scope: ["openid", "email", "profile", "offline_access"],
-      })(req, res, (err: any) => {
-        if (err) {
-          console.error("[AUTH] Login authentication error:", err);
-          return res.status(500).json({ 
-            error: "Authentication failed", 
-            message: "Unable to initiate login process" 
-          });
-        }
-        next();
-      });
-    } catch (error: any) {
-      console.error("[AUTH] Login route error:", error);
-      res.status(500).json({ 
-        error: "Authentication setup error", 
-        message: "Login service temporarily unavailable" 
-      });
-    }
+    passport.authenticate(strategyName, {
+      scope: ["openid", "email", "profile", "offline_access"],
+    })(req, res, next);
   });
 
   app.get("/api/callback", (req, res, next) => {
     console.log("[AUTH] Callback received for hostname:", req.hostname);
-    console.log("[AUTH] Callback query params:", req.query);
     
     const strategyName = `replitauth:${req.hostname}`;
-    console.log("[AUTH] Using callback strategy:", strategyName);
     
-    try {
-      passport.authenticate(strategyName, (err: any, user: any, info: any) => {
-        if (err) {
-          console.error("[AUTH] Callback authentication error:", err);
-          return res.redirect("/api/login?error=auth_failed");
-        }
-        
-        if (!user) {
-          console.error("[AUTH] No user returned from authentication:", info);
-          return res.redirect("/api/login?error=no_user");
-        }
-        
-        console.log("[AUTH] User authenticated successfully, logging in...");
-        req.logIn(user, (loginErr) => {
-          if (loginErr) {
-            console.error("[AUTH] Login session error:", loginErr);
-            return res.redirect("/api/login?error=session_failed");
-          }
-          
-          console.log("[AUTH] User session established, redirecting to home");
-          return res.redirect("/");
-        });
-      })(req, res, next);
-    } catch (error: any) {
-      console.error("[AUTH] Callback route error:", error);
-      res.redirect("/api/login?error=callback_failed");
-    }
+    passport.authenticate(strategyName, {
+      successRedirect: "/",
+      failureRedirect: "/",
+    })(req, res, next);
   });
 
   app.get("/api/logout", (req, res) => {
