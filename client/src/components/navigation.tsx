@@ -233,6 +233,12 @@ export default function Navigation() {
                       <i className="fas fa-cog mr-2"></i>
                       Settings
                     </DropdownMenuItem>
+                    <DropdownMenuItem>
+                      <Link href="/notification-settings" className="flex items-center w-full">
+                        <i className="fas fa-bell mr-2"></i>
+                        Notifications
+                      </Link>
+                    </DropdownMenuItem>
                     {user.farmer && (
                       <>
                         <DropdownMenuSeparator />
