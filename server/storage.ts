@@ -408,7 +408,7 @@ export class DatabaseStorage implements IStorage {
         and(
           eq(orders.customerId, userId),
           eq(products.farmerId, farmerId),
-          eq(orders.status, "completed")
+          eq(orders.status, "delivered")
         )
       );
     
@@ -1424,7 +1424,7 @@ export class DatabaseStorage implements IStorage {
     await db
       .update(businesses)
       .set({
-        verificationStatus: status,
+        verificationStatus: status as any,
         verifiedAt: status === 'verified' ? new Date() : null,
         verifiedBy: verifierId || null,
         updatedAt: new Date(),
@@ -1444,7 +1444,7 @@ export class DatabaseStorage implements IStorage {
   async getBusinesses(status?: string): Promise<Business[]> {
     const query = db.select().from(businesses);
     if (status) {
-      return await query.where(eq(businesses.verificationStatus, status));
+      return await query.where(eq(businesses.verificationStatus, status as any));
     }
     return await query;
   }
@@ -1477,10 +1477,10 @@ export class DatabaseStorage implements IStorage {
         discountAmount: bulkOrders.discountAmount,
         finalAmount: bulkOrders.finalAmount,
         status: bulkOrders.status,
-        deliveryDate: bulkOrders.deliveryDate,
-        specialInstructions: bulkOrders.specialInstructions,
+        requestedDeliveryDate: bulkOrders.requestedDeliveryDate,
+        notes: bulkOrders.notes,
         createdAt: bulkOrders.createdAt,
-        farmerName: farmers.businessName,
+        farmerName: farmers.farmName,
         farmerLocation: farmers.location,
       })
       .from(bulkOrders)
@@ -1500,8 +1500,8 @@ export class DatabaseStorage implements IStorage {
         discountAmount: bulkOrders.discountAmount,
         finalAmount: bulkOrders.finalAmount,
         status: bulkOrders.status,
-        deliveryDate: bulkOrders.deliveryDate,
-        specialInstructions: bulkOrders.specialInstructions,
+        requestedDeliveryDate: bulkOrders.requestedDeliveryDate,
+        notes: bulkOrders.notes,
         createdAt: bulkOrders.createdAt,
         businessName: businesses.businessName,
         businessEmail: businesses.businessEmail,
@@ -1523,12 +1523,12 @@ export class DatabaseStorage implements IStorage {
         discountAmount: bulkOrders.discountAmount,
         finalAmount: bulkOrders.finalAmount,
         status: bulkOrders.status,
-        deliveryDate: bulkOrders.deliveryDate,
-        specialInstructions: bulkOrders.specialInstructions,
+        requestedDeliveryDate: bulkOrders.requestedDeliveryDate,
+        notes: bulkOrders.notes,
         createdAt: bulkOrders.createdAt,
         businessName: businesses.businessName,
         businessEmail: businesses.businessEmail,
-        farmerName: farmers.businessName,
+        farmerName: farmers.farmName,
         farmerLocation: farmers.location,
       })
       .from(bulkOrders)
@@ -1547,7 +1547,7 @@ export class DatabaseStorage implements IStorage {
         unitPrice: bulkOrderItems.unitPrice,
         totalPrice: bulkOrderItems.totalPrice,
         productName: products.name,
-        productImage: products.imageUrl,
+        productImage: products.images,
       })
       .from(bulkOrderItems)
       .leftJoin(products, eq(bulkOrderItems.productId, products.id))
@@ -1559,7 +1559,7 @@ export class DatabaseStorage implements IStorage {
   async updateBulkOrderStatus(orderId: string, status: string): Promise<void> {
     await db
       .update(bulkOrders)
-      .set({ status, updatedAt: new Date() })
+      .set({ status: status as any, updatedAt: new Date() })
       .where(eq(bulkOrders.id, orderId));
   }
 
@@ -1583,20 +1583,20 @@ export class DatabaseStorage implements IStorage {
     for (const item of items) {
       const discount = await this.getApplicableVolumeDiscount(item.productId, item.quantity);
       if (discount) {
-        const itemDiscount = (item.totalPrice * discount.discountPercent) / 100;
+        const itemDiscount = (parseFloat(item.totalPrice.toString()) * parseFloat(discount.discountPercent.toString())) / 100;
         totalDiscount += itemDiscount;
       }
     }
 
-    const discountPercent = order.totalAmount > 0 ? (totalDiscount / order.totalAmount) * 100 : 0;
-    const finalAmount = order.totalAmount - totalDiscount;
+    const discountPercent = parseFloat(order.totalAmount.toString()) > 0 ? (totalDiscount / parseFloat(order.totalAmount.toString())) * 100 : 0;
+    const finalAmount = parseFloat(order.totalAmount.toString()) - totalDiscount;
 
     await db
       .update(bulkOrders)
       .set({
-        discountPercent: discountPercent,
-        discountAmount: totalDiscount,
-        finalAmount: finalAmount,
+        discountPercent: discountPercent.toString(),
+        discountAmount: totalDiscount.toString(),
+        finalAmount: finalAmount.toString(),
         updatedAt: new Date(),
       })
       .where(eq(bulkOrders.id, orderId));
@@ -1631,7 +1631,7 @@ export class DatabaseStorage implements IStorage {
         isActive: recurringBulkOrders.isActive,
         totalDeliveries: recurringBulkOrders.totalDeliveries,
         createdAt: recurringBulkOrders.createdAt,
-        farmerName: farmers.businessName,
+        farmerName: farmers.farmName,
       })
       .from(recurringBulkOrders)
       .leftJoin(farmers, eq(recurringBulkOrders.farmerId, farmers.id))
