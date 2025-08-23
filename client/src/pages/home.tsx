@@ -11,7 +11,8 @@ import { useAddToCart } from '@/components/shopping-cart';
 
 export default function Home() {
   const { toast } = useToast();
-  const { isAuthenticated, isLoading, user } = useAuth();
+  // Don't auto-check auth on public home page - only check when user clicks login
+  const { isAuthenticated, isLoading, user } = useAuth(false);
 
   const { data: products = [], isLoading: productsLoading, error } = useQuery({
     queryKey: ["/api/products"],
@@ -40,6 +41,44 @@ export default function Home() {
           <p className="text-xl md:text-2xl mb-8">
             Order directly from local farmers - Fresh, Local, Affordable
           </p>
+          
+          {/* Login/Account Info */}
+          <div className="mt-8">
+            {!isAuthenticated ? (
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <a 
+                  href="/api/login"
+                  className="bg-white text-green-600 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors"
+                  data-testid="button-login"
+                >
+                  🔑 Sign In to Place Orders
+                </a>
+                <span className="text-green-100 text-sm self-center">
+                  Or browse products without signing in
+                </span>
+              </div>
+            ) : (
+              <div className="bg-green-700 rounded-lg p-4 inline-block">
+                <p className="text-green-100">
+                  Welcome back, {user?.firstName || 'User'}! 
+                </p>
+                <div className="flex gap-2 mt-2 justify-center">
+                  <a 
+                    href="/orders"
+                    className="bg-white text-green-600 px-4 py-2 rounded text-sm hover:bg-gray-100"
+                  >
+                    My Orders
+                  </a>
+                  <a 
+                    href="/api/logout"
+                    className="bg-green-800 text-white px-4 py-2 rounded text-sm hover:bg-green-900"
+                  >
+                    Sign Out
+                  </a>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </section>
 

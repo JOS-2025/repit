@@ -1,9 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { User } from "@shared/schema";
 
-export function useAuth() {
+export function useAuth(enabled: boolean = true) {
   const { data: user, isLoading, error } = useQuery<User>({
     queryKey: ["/api/auth/user"],
+    enabled, // Allow disabling the query
     retry: (failureCount, error: any) => {
       // Don't retry on authentication errors
       if (error?.message?.includes('401')) {
@@ -18,15 +19,15 @@ export function useAuth() {
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
-  // Log authentication errors for debugging
-  if (error) {
+  // Log authentication errors for debugging (but only if enabled)
+  if (error && enabled) {
     console.log("[AUTH] Authentication check failed:", error.message);
   }
 
   return {
     user,
-    isLoading,
+    isLoading: enabled ? isLoading : false,
     isAuthenticated: !!user,
-    error,
+    error: enabled ? error : null,
   };
 }

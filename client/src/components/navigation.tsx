@@ -17,7 +17,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export default function Navigation() {
-  const { user, isAuthenticated, isLoading } = useAuth();
+  // Enable auth check in navigation for user menu functionality
+  const { user, isAuthenticated, isLoading } = useAuth(true);
   const [location] = useLocation();
   const { t } = useLanguage();
   const { toast } = useToast();
