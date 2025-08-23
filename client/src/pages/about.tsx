@@ -1,4 +1,5 @@
 import Navigation from "@/components/navigation";
+import Footer from "@/components/footer";
 
 const About = () => {
   return (
@@ -49,6 +50,8 @@ const About = () => {
           </div>
         </div>
       </div>
+      
+      <Footer />
     </div>
   );
 };

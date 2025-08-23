@@ -1,5 +1,6 @@
 import { Phone, Mail, MessageCircle, HelpCircle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import Footer from '@/components/footer';
 
 export default function HelpCenter() {
   return (
@@ -128,6 +129,8 @@ export default function HelpCenter() {
           </Card>
         </div>
       </div>
+      
+      <Footer />
     </div>
   );
 }

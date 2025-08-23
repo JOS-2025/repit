@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Navigation from "@/components/navigation";
+import Footer from "@/components/footer";
 import CategoryFilter from "@/components/category-filter";
 import ProductGrid from "@/components/product-grid";
 import { Input } from "@/components/ui/input";
@@ -285,6 +286,8 @@ export default function Products() {
           </Card>
         )}
       </div>
+      
+      <Footer />
     </div>
   );
 }
