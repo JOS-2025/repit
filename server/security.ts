@@ -199,36 +199,103 @@ export const validationSchemas = {
     body(field).optional().isURL().trim(),
 };
 
-// Security audit logging
+// Anonymize IP address for privacy
+function anonymizeIP(ip: string): string {
+  if (!ip || ip === 'unknown') return 'unknown';
+  
+  // IPv4 anonymization - mask last octet
+  if (ip.includes('.')) {
+    const parts = ip.split('.');
+    if (parts.length === 4) {
+      return `${parts[0]}.${parts[1]}.${parts[2]}.xxx`;
+    }
+  }
+  
+  // IPv6 anonymization - mask last segments
+  if (ip.includes(':')) {
+    const parts = ip.split(':');
+    if (parts.length >= 4) {
+      return `${parts[0]}:${parts[1]}:${parts[2]}:xxxx::`;
+    }
+  }
+  
+  return 'anonymized';
+}
+
+// Anonymize user agent for privacy
+function anonymizeUserAgent(userAgent: string): string {
+  if (!userAgent) return 'unknown';
+  
+  // Extract only browser family and major version
+  const browserPattern = /(Chrome|Firefox|Safari|Edge)\/(\d+)/i;
+  const match = userAgent.match(browserPattern);
+  
+  if (match) {
+    return `${match[1]}/${match[2]}.x`;
+  }
+  
+  return 'Browser/Unknown';
+}
+
+// Security audit logging with privacy protection
 export const securityLogger = {
   logFailedAuth: (req: Request, reason: string) => {
-    console.warn(`[SECURITY] Failed authentication attempt from ${req.ip}: ${reason}`, {
-      ip: req.ip,
-      userAgent: req.get('User-Agent'),
+    console.warn(`[SECURITY] Failed authentication attempt: ${reason}`, {
+      ip: anonymizeIP(req.ip || 'unknown'),
+      userAgent: anonymizeUserAgent(req.get('User-Agent') || ''),
       timestamp: new Date().toISOString(),
       path: req.path
     });
   },
   
   logSuspiciousActivity: (req: Request, activity: string, details?: any) => {
-    console.warn(`[SECURITY] Suspicious activity from ${req.ip}: ${activity}`, {
-      ip: req.ip,
-      userAgent: req.get('User-Agent'),
+    // Sanitize details to remove sensitive data
+    const sanitizedDetails = details ? sanitizeLogDetails(details) : undefined;
+    
+    console.warn(`[SECURITY] Suspicious activity: ${activity}`, {
+      ip: anonymizeIP(req.ip || 'unknown'),
+      userAgent: anonymizeUserAgent(req.get('User-Agent') || ''),
       timestamp: new Date().toISOString(),
       path: req.path,
-      details
+      details: sanitizedDetails
     });
   },
   
   logDataAccess: (userId: string, resource: string, action: string) => {
-    console.info(`[AUDIT] User ${userId} ${action} ${resource}`, {
-      userId,
+    // Hash user ID for privacy
+    const hashedUserId = userId ? crypto.createHash('sha256').update(userId).digest('hex').substring(0, 8) : 'anonymous';
+    
+    console.info(`[AUDIT] User ${hashedUserId} ${action} ${resource}`, {
+      userId: hashedUserId,
       resource,
       action,
       timestamp: new Date().toISOString()
     });
   }
 };
+
+// Sanitize log details to remove sensitive information
+function sanitizeLogDetails(details: any): any {
+  if (!details || typeof details !== 'object') return details;
+  
+  const sanitized = { ...details };
+  const sensitiveFields = ['password', 'token', 'email', 'phone', 'address', 'creditCard', 'ssn'];
+  
+  for (const field of sensitiveFields) {
+    if (sanitized[field]) {
+      sanitized[field] = '[REDACTED]';
+    }
+  }
+  
+  // Recursively sanitize nested objects
+  for (const [key, value] of Object.entries(sanitized)) {
+    if (value && typeof value === 'object') {
+      sanitized[key] = sanitizeLogDetails(value);
+    }
+  }
+  
+  return sanitized;
+}
 
 // CSRF protection middleware
 export const csrfProtection = (req: Request, res: Response, next: NextFunction) => {

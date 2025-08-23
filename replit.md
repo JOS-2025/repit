@@ -87,3 +87,39 @@ FramCart implements comprehensive enterprise-grade security measures to protect 
 - **CSP Compliance Validation**: Automatic checking for CSP policy violations
 - **Secure Storage**: Client-side data encryption with secure storage utilities
 - **Build-Time Security**: Security checks integrated into build process
+
+# Privacy & Anonymity Architecture
+
+## Anonymous Browsing Features
+FramCart provides comprehensive anonymity features to protect user privacy and enable anonymous shopping without compromising functionality.
+
+## Anonymous Session Management
+- **Temporary Sessions**: Anonymous session storage with configurable TTL (default 2 hours)
+- **No Permanent Storage**: Session data automatically expires and is cleaned up
+- **Anonymous IDs**: Cryptographically secure anonymous session identifiers
+- **Data Minimization**: Only essential data stored during anonymous sessions
+
+## Anonymous Shopping Capabilities
+- **Anonymous Cart**: Temporary cart storage without user accounts
+- **Guest Checkout**: Complete checkout process without registration
+- **Anonymous Order Tracking**: Order tracking with temporary anonymous IDs
+- **Anonymous Feedback**: Product reviews and feedback without user identification
+
+## Privacy Protection Measures
+- **IP Anonymization**: IP addresses masked in logs (last octet removed)
+- **User Agent Anonymization**: Browser fingerprints reduced to minimal information
+- **Data Sanitization**: Sensitive information automatically redacted from logs
+- **Privacy-Safe Error Logging**: Error logs scrubbed of personal information
+
+## Data Retention & Cleanup
+- **Automatic Expiry**: Anonymous data expires automatically after sessions
+- **Scheduled Cleanup**: Regular cleanup of expired anonymous data
+- **Data Rights Compliance**: Support for data deletion and access requests
+- **Minimal Data Collection**: Only essential information collected during anonymous browsing
+
+## Anonymous Privacy Controls
+- **Privacy Banner**: GDPR-compliant privacy consent with granular controls
+- **Anonymous Mode Toggle**: Easy switching between anonymous and regular browsing
+- **Privacy Settings Page**: Comprehensive privacy preferences management
+- **Privacy Status Indicator**: Visual indicator when in anonymous mode
+- **Data Clearing Tools**: Manual data deletion options for users

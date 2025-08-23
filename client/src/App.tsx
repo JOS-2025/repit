@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import { LanguageProvider } from "@/context/language-context";
+import { PrivacyBanner, PrivacyStatusIndicator } from "@/components/PrivacyBanner";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 import Home from "@/pages/home";
@@ -16,6 +17,7 @@ import OrderTrackingLive from "@/pages/order-tracking-live";
 import HelpCenter from "@/pages/help-center";
 import TermsConditions from "@/pages/terms-conditions";
 import PrivacyPolicy from "@/pages/privacy-policy";
+import PrivacySettings from "@/pages/privacy-settings";
 import Checkout from "@/pages/checkout";
 import FarmerAnalytics from "@/pages/farmer-analytics";
 import Wishlist from "@/pages/wishlist";
@@ -48,6 +50,7 @@ function Router() {
           <Route path="/help" component={HelpCenter} />
           <Route path="/terms" component={TermsConditions} />
           <Route path="/privacy" component={PrivacyPolicy} />
+          <Route path="/privacy-settings" component={PrivacySettings} />
           <Route path="/escrow-demo" component={EscrowDemo} />
         </>
       ) : (
@@ -64,6 +67,7 @@ function Router() {
           <Route path="/help" component={HelpCenter} />
           <Route path="/terms" component={TermsConditions} />
           <Route path="/privacy" component={PrivacyPolicy} />
+          <Route path="/privacy-settings" component={PrivacySettings} />
           <Route path="/checkout" component={Checkout} />
           <Route path="/farmer-analytics" component={FarmerAnalytics} />
           <Route path="/wishlist" component={Wishlist} />
@@ -92,6 +96,10 @@ function App() {
         <TooltipProvider>
           <Toaster />
           <Router />
+          
+          {/* Privacy and Anonymity Components */}
+          <PrivacyBanner />
+          <PrivacyStatusIndicator />
         </TooltipProvider>
       </LanguageProvider>
     </QueryClientProvider>
