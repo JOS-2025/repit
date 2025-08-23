@@ -1706,7 +1706,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // AI Search Suggestions
+  // AI Search Suggestions with Emojis
   app.post('/api/ai/search-suggestions', async (req, res) => {
     try {
       const { query } = req.body;
@@ -1715,13 +1715,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json({ suggestions: [] });
       }
       
-      // Mock user preferences - in real app, get from user session
-      const userPreferences = {
-        purchaseHistory: [],
-        location: 'Kenya',
-      };
+      // Get all products for context
+      const products = await storage.getAllProducts();
       
-      const suggestions = await aiService.getSearchSuggestions(query, userPreferences);
+      const suggestions = await aiService.getSmartSearchSuggestions(query, products, 8);
       
       res.json({ suggestions });
     } catch (error) {

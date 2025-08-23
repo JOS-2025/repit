@@ -53,7 +53,155 @@ interface RecommendationContext {
   searchQuery?: string;
 }
 
+interface SmartSuggestion {
+  text: string;
+  emoji: string;
+  category: string;
+  confidence: number;
+}
+
 export class AIService {
+  // Generate smart search suggestions with contextual emojis
+  async getSmartSearchSuggestions(
+    query: string,
+    availableProducts: Product[],
+    limit: number = 8
+  ): Promise<SmartSuggestion[]> {
+    try {
+      if (query.length < 2) return [];
+
+      // Get product names and categories for context
+      const productContext = availableProducts.map(p => ({
+        name: p.name,
+        category: p.category,
+        description: p.description
+      })).slice(0, 20); // Limit for API efficiency
+
+      const prompt = `You are a smart search assistant for a farm-to-table marketplace. 
+      
+User is typing: "${query}"
+      
+Available products context:
+${JSON.stringify(productContext, null, 2)}
+      
+Generate ${limit} intelligent search suggestions with contextual emojis. Consider:
+1. Product names and partial matches
+2. Categories (fruits, vegetables, dairy, grains, herbs)
+3. Cooking methods (fresh, organic, seasonal)
+4. Nutritional benefits (vitamins, protein, fiber)
+5. Meal types (breakfast, salad, soup ingredients)
+6. Seasonal preferences
+7. Local/regional specialties
+
+Each suggestion should have:
+- Relevant emoji that represents the search term
+- Clear, helpful search text
+- Appropriate category
+- Confidence score based on relevance
+
+Respond with JSON:
+{
+  "suggestions": [
+    {
+      "text": "Fresh tomatoes",
+      "emoji": "🍅",
+      "category": "vegetables", 
+      "confidence": 0.95
+    }
+  ]
+}`;
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [
+          {
+            role: "system",
+            content: "You are an expert search assistant for agricultural products. Provide contextually relevant search suggestions with appropriate emojis."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.7,
+        max_tokens: 800,
+      });
+
+      const aiResponse = JSON.parse(response.choices[0].message.content || '{"suggestions": []}');
+      return aiResponse.suggestions || [];
+      
+    } catch (error) {
+      console.error('AI search suggestions error:', error);
+      // Fallback to basic suggestions
+      return this.getFallbackSuggestions(query, availableProducts, limit);
+    }
+  }
+
+  // Fallback suggestions when AI is unavailable
+  private getFallbackSuggestions(query: string, products: Product[], limit: number): SmartSuggestion[] {
+    const lowerQuery = query.toLowerCase();
+    const suggestions: SmartSuggestion[] = [];
+
+    // Category-based emoji mapping
+    const categoryEmojis: { [key: string]: string } = {
+      'fruits': '🍎',
+      'vegetables': '🥬', 
+      'dairy': '🥛',
+      'grains': '🌾',
+      'herbs': '🌿',
+      'others': '🛒'
+    };
+
+    // Direct product matches
+    products
+      .filter(p => p.name.toLowerCase().includes(lowerQuery))
+      .slice(0, 3)
+      .forEach(p => {
+        suggestions.push({
+          text: p.name,
+          emoji: categoryEmojis[p.category] || '🛒',
+          category: p.category,
+          confidence: 0.9
+        });
+      });
+
+    // Category suggestions  
+    const categorySet = new Set(products.map(p => p.category));
+    const categories = Array.from(categorySet);
+    categories
+      .filter(cat => cat.toLowerCase().includes(lowerQuery))
+      .slice(0, 2)
+      .forEach(cat => {
+        suggestions.push({
+          text: cat,
+          emoji: categoryEmojis[cat] || '📦',
+          category: cat,
+          confidence: 0.7
+        });
+      });
+
+    // Common search terms with emojis
+    const commonTerms = [
+      { text: 'organic produce', emoji: '🌱', category: 'organic' },
+      { text: 'fresh vegetables', emoji: '🥕', category: 'vegetables' },
+      { text: 'seasonal fruits', emoji: '🍓', category: 'fruits' },
+      { text: 'local dairy', emoji: '🧀', category: 'dairy' }
+    ];
+
+    commonTerms
+      .filter(term => term.text.toLowerCase().includes(lowerQuery))
+      .slice(0, 2)
+      .forEach(term => {
+        suggestions.push({
+          ...term,
+          confidence: 0.6
+        });
+      });
+
+    return suggestions.slice(0, limit);
+  }
+
   // Generate personalized product recommendations
   async getPersonalizedRecommendations(
     userPreferences: UserPreferences,

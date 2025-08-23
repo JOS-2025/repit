@@ -48,14 +48,14 @@ export default function Marketplace() {
   const [locationFilter, setLocationFilter] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
-  const [searchSuggestions, setSearchSuggestions] = useState<string[]>([]);
+  const [searchSuggestions, setSearchSuggestions] = useState<Array<{text: string, emoji: string, category: string, confidence: number}>>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const { data: products = [], isLoading } = useQuery<Product[]>({
-    queryKey: ["/api/products", { search: searchTerm, category: selectedCategory, sort: sortBy }],
+    queryKey: ["/api/products", searchTerm, selectedCategory, sortBy],
   });
 
   const { data: categories = [] } = useQuery<string[]>({
@@ -71,15 +71,15 @@ export default function Marketplace() {
     enabled: searchTerm.length > 2 || selectedCategory !== "all",
   });
 
-  // Enhanced search with AI suggestions
+  // Enhanced search with AI suggestions and emojis
   const searchSuggestionsMutation = useMutation({
-    mutationFn: async (query: string): Promise<string[]> => {
+    mutationFn: async (query: string): Promise<Array<{text: string, emoji: string, category: string, confidence: number}>> => {
       if (query.length < 2) return [];
       const response = await apiRequest("POST", "/api/ai/search-suggestions", { query });
       const data = await response.json();
       return data.suggestions || [];
     },
-    onSuccess: (suggestions: string[]) => {
+    onSuccess: (suggestions: Array<{text: string, emoji: string, category: string, confidence: number}>) => {
       setSearchSuggestions(suggestions);
       setShowSuggestions(true);
     },
@@ -227,13 +227,18 @@ export default function Marketplace() {
                     key={index}
                     className="w-full px-4 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2"
                     onClick={() => {
-                      setSearchTerm(suggestion);
+                      setSearchTerm(suggestion.text);
                       setShowSuggestions(false);
                     }}
                     data-testid={`suggestion-${index}`}
                   >
-                    <Search className="w-4 h-4 text-gray-400" />
-                    {suggestion}
+                    <span className="text-lg mr-2">{suggestion.emoji}</span>
+                    <span className="flex-1">{suggestion.text}</span>
+                    <span className="text-xs text-gray-500 capitalize ml-2">{suggestion.category}</span>
+                    <div className="w-2 h-2 rounded-full ml-2" 
+                         style={{ backgroundColor: suggestion.confidence > 0.8 ? '#10b981' : suggestion.confidence > 0.6 ? '#f59e0b' : '#6b7280' }}
+                         title={`Confidence: ${Math.round(suggestion.confidence * 100)}%`}
+                    />
                   </button>
                 ))}
               </div>
