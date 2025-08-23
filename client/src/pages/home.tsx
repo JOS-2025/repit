@@ -13,21 +13,6 @@ export default function Home() {
   const { toast } = useToast();
   const { isAuthenticated, isLoading, user } = useAuth();
 
-  // Redirect to login if not authenticated
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      toast({
-        title: "Unauthorized",
-        description: "You are logged out. Logging in again...",
-        variant: "destructive",
-      });
-      setTimeout(() => {
-        window.location.href = "/api/login";
-      }, 500);
-      return;
-    }
-  }, [isAuthenticated, isLoading, toast]);
-
   const { data: products = [], isLoading: productsLoading, error } = useQuery({
     queryKey: ["/api/products"],
     retry: false,
@@ -35,30 +20,12 @@ export default function Home() {
 
   const productsArray = Array.isArray(products) ? products : [];
 
-  // Handle unauthorized error
+  // Handle unauthorized error for products query (but don't redirect)
   useEffect(() => {
     if (error && isUnauthorizedError(error as Error)) {
-      toast({
-        title: "Unauthorized",
-        description: "You are logged out. Logging in again...",
-        variant: "destructive",
-      });
-      setTimeout(() => {
-        window.location.href = "/api/login";
-      }, 500);
+      console.log("Products query failed due to auth, but this is a public page");
     }
-  }, [error, toast]);
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-warm-bg flex items-center justify-center">
-        <div className="text-center">
-          <i className="fas fa-seedling text-farm-green text-4xl mb-4 animate-pulse"></i>
-          <p className="text-gray-600">Loading FramCart...</p>
-        </div>
-      </div>
-    );
-  }
+  }, [error]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-green-50 to-white dark:from-green-950 dark:to-gray-900">
