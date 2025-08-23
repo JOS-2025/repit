@@ -37,6 +37,7 @@ import BulkOrders from "@/pages/b2b/bulk-orders";
 import ChatSupport from "@/components/chat-support";
 import { lazy } from "react";
 import NotificationSettings from "./pages/NotificationSettings";
+import Settings from "./pages/Settings";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -90,6 +91,7 @@ function Router() {
           <Route path="/b2b/bulk-orders" component={BulkOrders} />
           <Route path="/whatsapp-settings" component={WhatsAppSettings} />
           <Route path="/notification-settings" component={NotificationSettings} />
+          <Route path="/settings" component={Settings} />
         </>
       )}
       

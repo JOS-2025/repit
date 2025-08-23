@@ -84,6 +84,12 @@ import {
   type InsertProductSubscription,
   type ProductNotification,
   type InsertProductNotification,
+  userPreferences,
+  paymentMethods,
+  type UserPreferences,
+  type InsertUserPreferences,
+  type PaymentMethod,
+  type InsertPaymentMethod,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc, lte, gte, sql } from "drizzle-orm";
@@ -276,6 +282,20 @@ export interface IStorage {
   deleteProductSubscription(id: string): Promise<boolean>;
   createProductNotification(data: InsertProductNotification): Promise<ProductNotification>;
   getProductNotifications(filters?: { userId?: string; productId?: string; status?: string }): Promise<ProductNotification[]>;
+
+  // User preferences operations
+  getUserPreferences(userId: string): Promise<UserPreferences | undefined>;
+  createUserPreferences(preferences: InsertUserPreferences): Promise<UserPreferences>;
+  updateUserPreferences(userId: string, updates: Partial<InsertUserPreferences>): Promise<UserPreferences>;
+  upsertUserPreferences(userId: string, preferences: Partial<InsertUserPreferences>): Promise<UserPreferences>;
+
+  // Payment method operations
+  getUserPaymentMethods(userId: string): Promise<PaymentMethod[]>;
+  getPaymentMethod(paymentMethodId: string): Promise<PaymentMethod | undefined>;
+  createPaymentMethod(paymentMethod: InsertPaymentMethod): Promise<PaymentMethod>;
+  updatePaymentMethod(paymentMethodId: string, updates: Partial<InsertPaymentMethod>): Promise<PaymentMethod>;
+  deletePaymentMethod(paymentMethodId: string): Promise<void>;
+  setDefaultPaymentMethod(userId: string, paymentMethodId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2142,6 +2162,95 @@ export class DatabaseStorage implements IStorage {
     }
     
     return await query.orderBy(desc(productNotifications.createdAt));
+  }
+
+  // User preferences operations
+  async getUserPreferences(userId: string): Promise<UserPreferences | undefined> {
+    const [preferences] = await db
+      .select()
+      .from(userPreferences)
+      .where(eq(userPreferences.userId, userId));
+    return preferences;
+  }
+
+  async createUserPreferences(preferences: InsertUserPreferences): Promise<UserPreferences> {
+    const [newPreferences] = await db
+      .insert(userPreferences)
+      .values(preferences)
+      .returning();
+    return newPreferences;
+  }
+
+  async updateUserPreferences(userId: string, updates: Partial<InsertUserPreferences>): Promise<UserPreferences> {
+    const [updated] = await db
+      .update(userPreferences)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(userPreferences.userId, userId))
+      .returning();
+    return updated;
+  }
+
+  async upsertUserPreferences(userId: string, preferences: Partial<InsertUserPreferences>): Promise<UserPreferences> {
+    const existing = await this.getUserPreferences(userId);
+    if (existing) {
+      return this.updateUserPreferences(userId, preferences);
+    } else {
+      return this.createUserPreferences({ userId, ...preferences });
+    }
+  }
+
+  // Payment method operations
+  async getUserPaymentMethods(userId: string): Promise<PaymentMethod[]> {
+    return db
+      .select()
+      .from(paymentMethods)
+      .where(eq(paymentMethods.userId, userId))
+      .orderBy(desc(paymentMethods.isDefault), desc(paymentMethods.createdAt));
+  }
+
+  async getPaymentMethod(paymentMethodId: string): Promise<PaymentMethod | undefined> {
+    const [paymentMethod] = await db
+      .select()
+      .from(paymentMethods)
+      .where(eq(paymentMethods.id, paymentMethodId));
+    return paymentMethod;
+  }
+
+  async createPaymentMethod(paymentMethod: InsertPaymentMethod): Promise<PaymentMethod> {
+    const [newPaymentMethod] = await db
+      .insert(paymentMethods)
+      .values(paymentMethod)
+      .returning();
+    return newPaymentMethod;
+  }
+
+  async updatePaymentMethod(paymentMethodId: string, updates: Partial<InsertPaymentMethod>): Promise<PaymentMethod> {
+    const [updated] = await db
+      .update(paymentMethods)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(paymentMethods.id, paymentMethodId))
+      .returning();
+    return updated;
+  }
+
+  async deletePaymentMethod(paymentMethodId: string): Promise<void> {
+    await db
+      .delete(paymentMethods)
+      .where(eq(paymentMethods.id, paymentMethodId));
+  }
+
+  async setDefaultPaymentMethod(userId: string, paymentMethodId: string): Promise<void> {
+    // First, unset all default payment methods for the user
+    await db
+      .update(paymentMethods)
+      .set({ isDefault: false })
+      .where(eq(paymentMethods.userId, userId));
+
+    // Then set the selected payment method as default
+    await db
+      .update(paymentMethods)
+      .set({ isDefault: true })
+      .where(eq(paymentMethods.id, paymentMethodId));
   }
 }
 

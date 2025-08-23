@@ -2263,6 +2263,157 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============= SETTINGS API ROUTES =============
+  
+  // User preferences routes
+  app.get('/api/user/preferences', isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const preferences = await storage.getUserPreferences(user.id);
+      res.json(preferences);
+    } catch (error) {
+      console.error('Error fetching user preferences:', error);
+      res.status(500).json({ error: 'Failed to fetch preferences' });
+    }
+  });
+
+  app.put('/api/user/preferences', isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const updates = req.body;
+      
+      // Validate the preference updates
+      const allowedFields = [
+        'notificationsEnabled',
+        'emailNotifications', 
+        'pushNotifications',
+        'privacyShareData',
+        'privacyShowProfile',
+        'theme',
+        'language'
+      ];
+      
+      const filteredUpdates = Object.keys(updates)
+        .filter(key => allowedFields.includes(key))
+        .reduce((obj, key) => {
+          obj[key] = updates[key];
+          return obj;
+        }, {} as any);
+
+      const preferences = await storage.upsertUserPreferences(user.id, filteredUpdates);
+      res.json(preferences);
+    } catch (error) {
+      console.error('Error updating user preferences:', error);
+      res.status(500).json({ error: 'Failed to update preferences' });
+    }
+  });
+
+  // Payment methods routes
+  app.get('/api/payment-methods', isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const paymentMethods = await storage.getUserPaymentMethods(user.id);
+      res.json(paymentMethods);
+    } catch (error) {
+      console.error('Error fetching payment methods:', error);
+      res.status(500).json({ error: 'Failed to fetch payment methods' });
+    }
+  });
+
+  app.post('/api/payment-methods', 
+    isAuthenticated, 
+    [
+      body('type').isIn(['card', 'mobile_money']).withMessage('Invalid payment method type'),
+      body('cardLastFour').optional().isLength({ min: 4, max: 4 }).withMessage('Card last four must be 4 digits'),
+      body('cardBrand').optional().isIn(['visa', 'mastercard', 'amex', 'discover']).withMessage('Invalid card brand'),
+      body('mobileProvider').optional().isIn(['mpesa', 'airtel_money', 'orange_money']).withMessage('Invalid mobile provider'),
+      body('mobileNumber').optional().isMobilePhone('any').withMessage('Invalid mobile number')
+    ],
+    handleValidationErrors,
+    async (req, res) => {
+      try {
+        const user = req.user as any;
+        const paymentMethodData = {
+          userId: user.id,
+          ...req.body
+        };
+
+        const paymentMethod = await storage.createPaymentMethod(paymentMethodData);
+        res.json(paymentMethod);
+      } catch (error) {
+        console.error('Error creating payment method:', error);
+        res.status(500).json({ error: 'Failed to create payment method' });
+      }
+    }
+  );
+
+  app.put('/api/payment-methods/:id', isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { id } = req.params;
+      
+      // Check if user owns this payment method
+      const existingMethod = await storage.getPaymentMethod(id);
+      if (!existingMethod || existingMethod.userId !== user.id) {
+        return res.status(404).json({ error: 'Payment method not found' });
+      }
+
+      const updates = req.body;
+      const allowedFields = ['cardLastFour', 'cardBrand', 'mobileProvider', 'mobileNumber', 'isActive'];
+      
+      const filteredUpdates = Object.keys(updates)
+        .filter(key => allowedFields.includes(key))
+        .reduce((obj, key) => {
+          obj[key] = updates[key];
+          return obj;
+        }, {} as any);
+
+      const paymentMethod = await storage.updatePaymentMethod(id, filteredUpdates);
+      res.json(paymentMethod);
+    } catch (error) {
+      console.error('Error updating payment method:', error);
+      res.status(500).json({ error: 'Failed to update payment method' });
+    }
+  });
+
+  app.delete('/api/payment-methods/:id', isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { id } = req.params;
+      
+      // Check if user owns this payment method
+      const existingMethod = await storage.getPaymentMethod(id);
+      if (!existingMethod || existingMethod.userId !== user.id) {
+        return res.status(404).json({ error: 'Payment method not found' });
+      }
+
+      await storage.deletePaymentMethod(id);
+      res.json({ success: true, message: 'Payment method deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting payment method:', error);
+      res.status(500).json({ error: 'Failed to delete payment method' });
+    }
+  });
+
+  app.put('/api/payment-methods/:id/set-default', isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { id } = req.params;
+      
+      // Check if user owns this payment method
+      const existingMethod = await storage.getPaymentMethod(id);
+      if (!existingMethod || existingMethod.userId !== user.id) {
+        return res.status(404).json({ error: 'Payment method not found' });
+      }
+
+      await storage.setDefaultPaymentMethod(user.id, id);
+      res.json({ success: true, message: 'Default payment method updated successfully' });
+    } catch (error) {
+      console.error('Error setting default payment method:', error);
+      res.status(500).json({ error: 'Failed to set default payment method' });
+    }
+  });
+
   // Setup GPS tracking WebSocket
   setupGPSTracking(httpServer);
   

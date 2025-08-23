@@ -230,8 +230,10 @@ export default function Navigation() {
                       Profile
                     </DropdownMenuItem>
                     <DropdownMenuItem>
-                      <i className="fas fa-cog mr-2"></i>
-                      Settings
+                      <Link href="/settings" className="flex items-center w-full" data-testid="link-settings">
+                        <i className="fas fa-cog mr-2"></i>
+                        Settings
+                      </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem>
                       <Link href="/notification-settings" className="flex items-center w-full">

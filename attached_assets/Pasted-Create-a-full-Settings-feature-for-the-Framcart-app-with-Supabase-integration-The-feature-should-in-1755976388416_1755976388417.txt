@@ -1,0 +1,50 @@
+Create a full Settings feature for the Framcart app with Supabase integration. The feature should include:
+
+1. **UI & Navigation**
+   - Add a new `Settings` page and link it in the navigation bar.
+   - Page sections:
+     a) Account Info (Name, Email, Phone).
+     b) Notification Preferences (Email notifications toggle, Push notifications toggle).
+     c) Privacy Settings (Show profile, Allow data sharing toggles).
+     d) Theme Toggle (Light/Dark mode).
+     e) Language Selector (Dropdown).
+     f) Payment Methods (Add/Remove cards, Mobile Money).
+     g) Security (Change Password, Enable Passkey).
+     h) Logout button.
+
+2. **Backend Integration with Supabase**
+   - Create a `user_preferences` table if it does not exist with columns:
+     - `id` (UUID, primary key, default uuid_generate_v4()).
+     - `user_id` (UUID, references auth.users).
+     - `notifications_enabled` (boolean, default true).
+     - `privacy_share_data` (boolean, default false).
+     - `theme` (text, default 'light').
+     - `language` (text, default 'en').
+     - `created_at` (timestamp, default now()).
+   - Enable **Row Level Security (RLS)** and add policy:
+     - Users can only read/update their own preferences.
+
+3. **Settings Logic**
+   - Fetch user settings from Supabase on page load.
+   - Save changes instantly when toggles are changed (using Supabase update).
+   - Show success message on update.
+
+4. **Security**
+   - Add Supabase RLS policies:
+     - `SELECT` and `UPDATE` only allowed for `auth.uid() = user_id`.
+   - Enable Supabase email confirmation for users.
+   - Encrypt sensitive data (payment methods).
+
+5. **Responsive Design**
+   - Use Tailwind CSS for styling.
+   - Ensure full mobile responsiveness.
+
+6. **Deployment**
+   - After creating and linking everything, rebuild the navigation and redeploy the app.
+
+Deliverables:
+- Updated navigation component.
+- New `Settings` page with all sections.
+- Supabase integration code (JS).
+- Secure policies for Supabase.
+

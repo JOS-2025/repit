@@ -35,6 +35,37 @@ export const users = pgTable("users", {
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
+  phoneNumber: varchar("phone_number"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// User preferences table
+export const userPreferences = pgTable("user_preferences", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  notificationsEnabled: boolean("notifications_enabled").default(true),
+  emailNotifications: boolean("email_notifications").default(true),
+  pushNotifications: boolean("push_notifications").default(true),
+  privacyShareData: boolean("privacy_share_data").default(false),
+  privacyShowProfile: boolean("privacy_show_profile").default(true),
+  theme: varchar("theme").default("light"), // light, dark
+  language: varchar("language").default("en"), // en, sw, fr, etc.
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Payment methods table
+export const paymentMethods = pgTable("payment_methods", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  type: varchar("type").notNull(), // card, mobile_money
+  cardLastFour: varchar("card_last_four"), // For display purposes only
+  cardBrand: varchar("card_brand"), // visa, mastercard, etc.
+  mobileProvider: varchar("mobile_provider"), // mpesa, airtel_money, etc.
+  mobileNumber: varchar("mobile_number"), // Encrypted phone number
+  isDefault: boolean("is_default").default(false),
+  isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -219,6 +250,11 @@ export const usersRelations = relations(users, ({ one, many }) => ({
     fields: [users.id],
     references: [businesses.userId],
   }),
+  preferences: one(userPreferences, {
+    fields: [users.id],
+    references: [userPreferences.userId],
+  }),
+  paymentMethods: many(paymentMethods),
   orders: many(orders, { relationName: "customerOrders" }),
   cartItems: many(cartItems),
 }));
@@ -861,21 +897,6 @@ export const salesAnalytics = pgTable("sales_analytics", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// User preferences for language support
-export const userPreferences = pgTable("user_preferences", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").references(() => users.id).notNull().unique(),
-  language: varchar("language").default("en").notNull(), // en, sw (English, Swahili)
-  notificationSettings: jsonb("notification_settings").default({
-    email: true,
-    push: true,
-    sms: false,
-    orderUpdates: true,
-    promotions: true
-  }).notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
 
 // Extended types with relations
 export type ProductWithFarmer = Product & {
@@ -1472,6 +1493,22 @@ export const productNotificationsRelations = relations(productNotifications, ({ 
   }),
 }));
 
+// User preferences relations
+export const userPreferencesRelations = relations(userPreferences, ({ one }) => ({
+  user: one(users, {
+    fields: [userPreferences.userId],
+    references: [users.id],
+  }),
+}));
+
+// Payment methods relations
+export const paymentMethodsRelations = relations(paymentMethods, ({ one }) => ({
+  user: one(users, {
+    fields: [paymentMethods.userId],
+    references: [users.id],
+  }),
+}));
+
 // ============= TYPE EXPORTS =============
 
 export type ForumCategory = typeof forumCategories.$inferSelect;
@@ -1490,3 +1527,7 @@ export type ProductSubscription = typeof productSubscriptions.$inferSelect;
 export type InsertProductSubscription = typeof productSubscriptions.$inferInsert;
 export type ProductNotification = typeof productNotifications.$inferSelect;
 export type InsertProductNotification = typeof productNotifications.$inferInsert;
+export type UserPreferences = typeof userPreferences.$inferSelect;
+export type InsertUserPreferences = typeof userPreferences.$inferInsert;
+export type PaymentMethod = typeof paymentMethods.$inferSelect;
+export type InsertPaymentMethod = typeof paymentMethods.$inferInsert;
