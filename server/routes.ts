@@ -1975,6 +1975,149 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Initialize sample data endpoint (for development)
+  app.post('/api/init-sample-data', async (req, res) => {
+    try {
+      // Clear existing data first by checking if data exists
+      const existingProducts = await storage.getProducts();
+      if (existingProducts.length > 0) {
+        return res.json({ 
+          success: true, 
+          message: 'Sample data already exists',
+          productsCount: existingProducts.length 
+        });
+      }
+
+      // Create sample users first
+      const user1 = await storage.upsertUser({
+        id: 'sample-user-1',
+        email: 'farmer1@greenvalley.com',
+        firstName: 'John',
+        lastName: 'Kiprotich',
+        profileImageUrl: null,
+      });
+
+      const user2 = await storage.upsertUser({
+        id: 'sample-user-2',
+        email: 'farmer2@sunshine.com', 
+        firstName: 'Mary',
+        lastName: 'Wanjiku',
+        profileImageUrl: null,
+      });
+
+      // Create sample farmers
+      const farmer1 = await storage.createFarmer({
+        userId: user1.id,
+        farmName: 'Green Valley Farm',
+        location: 'Kiambu County, Kenya',
+        experience: '10 years',
+        certifications: ['Organic', 'Fair Trade'],
+        specialties: ['vegetables', 'fruits'],
+        isVerified: true,
+        averageRating: 4.8
+      });
+
+      const farmer2 = await storage.createFarmer({
+        userId: user2.id, 
+        farmName: 'Sunshine Organic Farm',
+        location: 'Nakuru County, Kenya',
+        experience: '7 years',
+        certifications: ['Organic'],
+        specialties: ['dairy', 'grains'],
+        isVerified: true,
+        averageRating: 4.6
+      });
+
+      // Create sample products
+      const sampleProducts = [
+        {
+          name: 'Fresh Tomatoes',
+          description: 'Juicy red tomatoes, perfect for cooking',
+          price: '150',
+          category: 'vegetables' as const,
+          unit: 'kg' as const,
+          availableQuantity: 100,
+          farmerId: farmer1.id,
+          images: null,
+          isActive: true
+        },
+        {
+          name: 'Organic Carrots',
+          description: 'Sweet and crunchy organic carrots',
+          price: '120',
+          category: 'vegetables' as const,
+          unit: 'kg' as const,
+          availableQuantity: 80,
+          farmerId: farmer1.id,
+          images: null,
+          isActive: true
+        },
+        {
+          name: 'Fresh Spinach',
+          description: 'Leafy green spinach, rich in nutrients',
+          price: '80',
+          category: 'vegetables' as const,
+          unit: 'bunch' as const,
+          availableQuantity: 50,
+          farmerId: farmer1.id,
+          images: null,
+          isActive: true
+        },
+        {
+          name: 'Sweet Mangoes',
+          description: 'Delicious ripe mangoes from local farms',
+          price: '200',
+          category: 'fruits' as const,
+          unit: 'kg' as const,
+          availableQuantity: 60,
+          farmerId: farmer2.id,
+          images: null,
+          isActive: true
+        },
+        {
+          name: 'Fresh Milk',
+          description: 'Pure cow milk from grass-fed cows',
+          price: '60',
+          category: 'dairy' as const,
+          unit: 'liter' as const,
+          availableQuantity: 40,
+          farmerId: farmer2.id,
+          images: null,
+          isActive: true
+        },
+        {
+          name: 'Organic Maize',
+          description: 'High-quality organic maize kernels',
+          price: '90',
+          category: 'grains' as const,
+          unit: 'kg' as const,
+          availableQuantity: 200,
+          farmerId: farmer2.id,
+          images: null,
+          isActive: true
+        }
+      ];
+
+      for (const productData of sampleProducts) {
+        await storage.createProduct(productData);
+      }
+
+      res.json({ 
+        success: true, 
+        message: 'Sample data initialized successfully',
+        farmersCreated: 2,
+        productsCreated: sampleProducts.length
+      });
+    } catch (error) {
+      console.error('Error initializing sample data:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Failed to initialize sample data',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   // Setup GPS tracking WebSocket
   setupGPSTracking(httpServer);
   

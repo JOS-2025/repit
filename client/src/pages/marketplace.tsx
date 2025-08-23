@@ -314,7 +314,7 @@ export default function Marketplace() {
                       </p>
                       
                       <div className="flex items-center justify-between">
-                        <span className="text-xl font-bold text-green-600">${product.price}</span>
+                        <span className="text-xl font-bold text-green-600">KSh {product.price}</span>
                         <div className="flex items-center gap-1">
                           <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
                           <span className="text-sm font-medium">{product.farmer?.averageRating}</span>
@@ -566,7 +566,7 @@ export default function Marketplace() {
                       
                       <div className="flex items-center justify-between">
                         <div>
-                          <span className="text-xl font-bold text-green-600">${product.price}</span>
+                          <span className="text-xl font-bold text-green-600">KSh {product.price}</span>
                           <span className="text-xs text-gray-500 ml-1">/{product.unit}</span>
                         </div>
                         <div className="flex items-center gap-1">
@@ -706,7 +706,7 @@ export default function Marketplace() {
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
                     <span className="text-2xl font-bold text-green-600" data-testid={`product-price-${product.id}`}>
-                      ${product.price}
+                      KSh {product.price}
                     </span>
                     <span className="text-sm text-gray-500">per {product.unit}</span>
                   </div>
