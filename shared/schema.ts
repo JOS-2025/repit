@@ -214,6 +214,10 @@ export const usersRelations = relations(users, ({ one, many }) => ({
     fields: [users.id],
     references: [farmers.userId],
   }),
+  business: one(businesses, {
+    fields: [users.id],
+    references: [businesses.userId],
+  }),
   orders: many(orders, { relationName: "customerOrders" }),
   cartItems: many(cartItems),
 }));
@@ -284,6 +288,8 @@ export const cartItemsRelations = relations(cartItems, ({ one }) => ({
   }),
 }));
 
+
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -331,6 +337,232 @@ export const insertCartItemSchema = createInsertSchema(cartItems).omit({
 });
 
 export const insertSimpleOrderSchema = createInsertSchema(simpleOrders).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+
+// B2B Business accounts
+export const businessStatusEnum = pgEnum("business_status", [
+  "pending",
+  "verified", 
+  "suspended",
+  "rejected"
+]);
+
+export const businesses = pgTable("businesses", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  businessName: varchar("business_name").notNull(),
+  contactPerson: varchar("contact_person").notNull(),
+  businessEmail: varchar("business_email").notNull(),
+  phoneNumber: varchar("phone_number").notNull(),
+  address: text("address").notNull(),
+  businessLicense: varchar("business_license"), // file path
+  verificationStatus: businessStatusEnum("verification_status").default("pending"),
+  verificationNotes: text("verification_notes"),
+  verifiedAt: timestamp("verified_at"),
+  verifiedBy: varchar("verified_by"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Bulk order status enum
+export const bulkOrderStatusEnum = pgEnum("bulk_order_status", [
+  "draft",
+  "pending",
+  "confirmed",
+  "in_progress", 
+  "completed",
+  "cancelled"
+]);
+
+// Recurring frequency enum
+export const frequencyEnum = pgEnum("frequency", [
+  "daily",
+  "weekly",
+  "bi_weekly",
+  "monthly"
+]);
+
+// Bulk orders
+export const bulkOrders = pgTable("bulk_orders", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  businessId: varchar("business_id").notNull().references(() => businesses.id),
+  farmerId: varchar("farmer_id").references(() => farmers.id), // Can be null if not assigned yet
+  totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
+  discountPercent: decimal("discount_percent", { precision: 5, scale: 2 }).default("0"),
+  discountAmount: decimal("discount_amount", { precision: 10, scale: 2 }).default("0"),
+  finalAmount: decimal("final_amount", { precision: 10, scale: 2 }).notNull(),
+  status: bulkOrderStatusEnum("status").default("draft"),
+  deliveryAddress: text("delivery_address").notNull(),
+  requestedDeliveryDate: timestamp("requested_delivery_date"),
+  confirmedDeliveryDate: timestamp("confirmed_delivery_date"),
+  notes: text("notes"),
+  paymentTerms: varchar("payment_terms").default("immediate"), // immediate, net_30, net_60
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Bulk order items
+export const bulkOrderItems = pgTable("bulk_order_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  bulkOrderId: varchar("bulk_order_id").notNull().references(() => bulkOrders.id),
+  productId: varchar("product_id").notNull().references(() => products.id),
+  quantity: integer("quantity").notNull(),
+  unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
+  totalPrice: decimal("total_price", { precision: 10, scale: 2 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Recurring bulk orders
+export const recurringBulkOrders = pgTable("recurring_bulk_orders", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  businessId: varchar("business_id").notNull().references(() => businesses.id),
+  farmerId: varchar("farmer_id").references(() => farmers.id),
+  frequency: frequencyEnum("frequency").notNull(),
+  nextDelivery: timestamp("next_delivery").notNull(),
+  lastDelivery: timestamp("last_delivery"),
+  isActive: boolean("is_active").default(true),
+  deliveryAddress: text("delivery_address").notNull(),
+  totalDeliveries: integer("total_deliveries").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Recurring bulk order items
+export const recurringBulkOrderItems = pgTable("recurring_bulk_order_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  recurringOrderId: varchar("recurring_order_id").notNull().references(() => recurringBulkOrders.id),
+  productId: varchar("product_id").notNull().references(() => products.id),
+  quantity: integer("quantity").notNull(),
+  unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Invoice status enum
+export const invoiceStatusEnum = pgEnum("invoice_status", [
+  "draft",
+  "sent",
+  "paid",
+  "overdue",
+  "cancelled"
+]);
+
+// Invoices
+export const invoices = pgTable("invoices", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  invoiceNumber: varchar("invoice_number").notNull().unique(),
+  bulkOrderId: varchar("bulk_order_id").references(() => bulkOrders.id),
+  businessId: varchar("business_id").notNull().references(() => businesses.id),
+  farmerId: varchar("farmer_id").notNull().references(() => farmers.id),
+  subtotal: decimal("subtotal", { precision: 10, scale: 2 }).notNull(),
+  taxPercent: decimal("tax_percent", { precision: 5, scale: 2 }).default("0"),
+  taxAmount: decimal("tax_amount", { precision: 10, scale: 2 }).default("0"),
+  discountAmount: decimal("discount_amount", { precision: 10, scale: 2 }).default("0"),
+  totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
+  status: invoiceStatusEnum("status").default("draft"),
+  issuedDate: timestamp("issued_date").defaultNow(),
+  dueDate: timestamp("due_date").notNull(),
+  paidDate: timestamp("paid_date"),
+  paymentMethod: paymentMethodEnum("payment_method"),
+  paymentReference: varchar("payment_reference"),
+  pdfUrl: varchar("pdf_url"), // URL to generated PDF
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Volume discount rules
+export const volumeDiscounts = pgTable("volume_discounts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  farmerId: varchar("farmer_id").references(() => farmers.id),
+  productId: varchar("product_id").references(() => products.id), // null = applies to all products
+  minQuantity: integer("min_quantity").notNull(),
+  maxQuantity: integer("max_quantity"), // null = no maximum
+  discountPercent: decimal("discount_percent", { precision: 5, scale: 2 }).notNull(),
+  isActive: boolean("is_active").default(true),
+  validFrom: timestamp("valid_from").defaultNow(),
+  validUntil: timestamp("valid_until"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// B2B pricing tiers
+export const pricingTierEnum = pgEnum("pricing_tier", [
+  "retail", // B2C
+  "wholesale", // B2B small
+  "bulk", // B2B large
+  "enterprise" // B2B enterprise
+]);
+
+export const productPricing = pgTable("product_pricing", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  productId: varchar("product_id").notNull().references(() => products.id),
+  tier: pricingTierEnum("tier").notNull(),
+  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+  minQuantity: integer("min_quantity").default(1),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// B2B Insert schemas (after B2B table definitions)
+export const insertBusinessSchema = createInsertSchema(businesses).omit({
+  id: true,
+  verificationStatus: true,
+  verifiedAt: true,
+  verifiedBy: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertBulkOrderSchema = createInsertSchema(bulkOrders).omit({
+  id: true,
+  discountPercent: true,
+  discountAmount: true,
+  status: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertBulkOrderItemSchema = createInsertSchema(bulkOrderItems).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertRecurringBulkOrderSchema = createInsertSchema(recurringBulkOrders).omit({
+  id: true,
+  lastDelivery: true,
+  isActive: true,
+  totalDeliveries: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertRecurringBulkOrderItemSchema = createInsertSchema(recurringBulkOrderItems).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertInvoiceSchema = createInsertSchema(invoices).omit({
+  id: true,
+  invoiceNumber: true,
+  status: true,
+  issuedDate: true,
+  paidDate: true,
+  pdfUrl: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertVolumeDiscountSchema = createInsertSchema(volumeDiscounts).omit({
+  id: true,
+  isActive: true,
+  validFrom: true,
+  createdAt: true,
+});
+
+export const insertProductPricingSchema = createInsertSchema(productPricing).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
@@ -441,6 +673,7 @@ export const messageNotifications = pgTable("message_notifications", {
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect & {
   farmer?: typeof farmers.$inferSelect | null;
+  business?: typeof businesses.$inferSelect | null;
 };
 export type InsertFarmer = z.infer<typeof insertFarmerSchema>;
 export type Farmer = typeof farmers.$inferSelect;
@@ -456,6 +689,24 @@ export type InsertCartItem = z.infer<typeof insertCartItemSchema>;
 export type CartItem = typeof cartItems.$inferSelect;
 export type InsertSimpleOrder = z.infer<typeof insertSimpleOrderSchema>;
 export type SimpleOrder = typeof simpleOrders.$inferSelect;
+
+// B2B Types
+export type InsertBusiness = z.infer<typeof insertBusinessSchema>;
+export type Business = typeof businesses.$inferSelect;
+export type InsertBulkOrder = z.infer<typeof insertBulkOrderSchema>;
+export type BulkOrder = typeof bulkOrders.$inferSelect;
+export type InsertBulkOrderItem = z.infer<typeof insertBulkOrderItemSchema>;
+export type BulkOrderItem = typeof bulkOrderItems.$inferSelect;
+export type InsertRecurringBulkOrder = z.infer<typeof insertRecurringBulkOrderSchema>;
+export type RecurringBulkOrder = typeof recurringBulkOrders.$inferSelect;
+export type InsertRecurringBulkOrderItem = z.infer<typeof insertRecurringBulkOrderItemSchema>;
+export type RecurringBulkOrderItem = typeof recurringBulkOrderItems.$inferSelect;
+export type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
+export type Invoice = typeof invoices.$inferSelect;
+export type InsertVolumeDiscount = z.infer<typeof insertVolumeDiscountSchema>;
+export type VolumeDiscount = typeof volumeDiscounts.$inferSelect;
+export type InsertProductPricing = z.infer<typeof insertProductPricingSchema>;
+export type ProductPricing = typeof productPricing.$inferSelect;
 
 // Reviews table
 export const reviews = pgTable("reviews", {
@@ -1073,6 +1324,97 @@ export type DemandPrediction = typeof demandPredictions.$inferSelect;
 export type BlockchainRecord = typeof blockchainRecords.$inferSelect;
 export type IoTSensor = typeof iotSensors.$inferSelect;
 export type SensorReading = typeof sensorReadings.$inferSelect;
+
+// B2B Relations (defined after all tables)
+export const businessesRelations = relations(businesses, ({ one, many }) => ({
+  user: one(users, {
+    fields: [businesses.userId],
+    references: [users.id],
+  }),
+  bulkOrders: many(bulkOrders),
+  recurringOrders: many(recurringBulkOrders),
+  invoices: many(invoices),
+}));
+
+export const bulkOrdersRelations = relations(bulkOrders, ({ one, many }) => ({
+  business: one(businesses, {
+    fields: [bulkOrders.businessId],
+    references: [businesses.id],
+  }),
+  farmer: one(farmers, {
+    fields: [bulkOrders.farmerId],
+    references: [farmers.id],
+  }),
+  items: many(bulkOrderItems),
+  invoice: one(invoices),
+}));
+
+export const bulkOrderItemsRelations = relations(bulkOrderItems, ({ one }) => ({
+  bulkOrder: one(bulkOrders, {
+    fields: [bulkOrderItems.bulkOrderId],
+    references: [bulkOrders.id],
+  }),
+  product: one(products, {
+    fields: [bulkOrderItems.productId],
+    references: [products.id],
+  }),
+}));
+
+export const recurringBulkOrdersRelations = relations(recurringBulkOrders, ({ one, many }) => ({
+  business: one(businesses, {
+    fields: [recurringBulkOrders.businessId],
+    references: [businesses.id],
+  }),
+  farmer: one(farmers, {
+    fields: [recurringBulkOrders.farmerId],
+    references: [farmers.id],
+  }),
+  items: many(recurringBulkOrderItems),
+}));
+
+export const recurringBulkOrderItemsRelations = relations(recurringBulkOrderItems, ({ one }) => ({
+  recurringOrder: one(recurringBulkOrders, {
+    fields: [recurringBulkOrderItems.recurringOrderId],
+    references: [recurringBulkOrders.id],
+  }),
+  product: one(products, {
+    fields: [recurringBulkOrderItems.productId],
+    references: [products.id],
+  }),
+}));
+
+export const invoicesRelations = relations(invoices, ({ one }) => ({
+  business: one(businesses, {
+    fields: [invoices.businessId],
+    references: [businesses.id],
+  }),
+  farmer: one(farmers, {
+    fields: [invoices.farmerId],
+    references: [farmers.id],
+  }),
+  bulkOrder: one(bulkOrders, {
+    fields: [invoices.bulkOrderId],
+    references: [bulkOrders.id],
+  }),
+}));
+
+export const volumeDiscountsRelations = relations(volumeDiscounts, ({ one }) => ({
+  farmer: one(farmers, {
+    fields: [volumeDiscounts.farmerId],
+    references: [farmers.id],
+  }),
+  product: one(products, {
+    fields: [volumeDiscounts.productId],
+    references: [products.id],
+  }),
+}));
+
+export const productPricingRelations = relations(productPricing, ({ one }) => ({
+  product: one(products, {
+    fields: [productPricing.productId],
+    references: [products.id],
+  }),
+}));
 export type ForumCategory = typeof forumCategories.$inferSelect;
 export type InsertForumCategory = typeof forumCategories.$inferInsert;
 export type ForumTopic = typeof forumTopics.$inferSelect;

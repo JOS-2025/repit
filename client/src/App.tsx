@@ -25,6 +25,9 @@ import About from "@/pages/about";
 import Categories from "@/pages/categories";
 import Recommendations from "@/pages/recommendations";
 import { EscrowDemo } from "@/pages/EscrowDemo";
+import B2BIndex from "@/pages/b2b/index";
+import BusinessRegister from "@/pages/b2b/register";
+import BulkOrders from "@/pages/b2b/bulk-orders";
 import ChatSupport from "@/components/chat-support";
 import { lazy } from "react";
 
@@ -68,6 +71,9 @@ function Router() {
           <Route path="/about" component={About} />
           <Route path="/admin" component={AdminDashboard} />
           <Route path="/escrow-demo" component={EscrowDemo} />
+          <Route path="/b2b" component={B2BIndex} />
+          <Route path="/b2b/register" component={BusinessRegister} />
+          <Route path="/b2b/bulk-orders" component={BulkOrders} />
         </>
       )}
       

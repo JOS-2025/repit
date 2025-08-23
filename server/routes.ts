@@ -12,7 +12,15 @@ import {
   insertOrderItemSchema,
   insertCartItemSchema,
   insertSimpleOrderSchema,
-  insertFarmerRatingSchema
+  insertFarmerRatingSchema,
+  insertBusinessSchema,
+  insertBulkOrderSchema,
+  insertBulkOrderItemSchema,
+  insertRecurringBulkOrderSchema,
+  insertRecurringBulkOrderItemSchema,
+  insertInvoiceSchema,
+  insertVolumeDiscountSchema,
+  insertProductPricingSchema,
 } from "@shared/schema";
 import { 
   strictRateLimit, 
@@ -1411,6 +1419,211 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error generating trending products:", error);
       res.status(500).json({ success: false, message: "Failed to generate trending products" });
+    }
+  });
+
+  // ============= B2B API ROUTES =============
+  
+  // B2B Business Registration Routes
+  app.post('/api/business/register', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // Check if user already has a business
+      const existingBusiness = await storage.getBusinessByUserId(userId);
+      if (existingBusiness) {
+        return res.status(400).json({ error: 'User already has a business registered' });
+      }
+
+      // Validate business data
+      const businessData = insertBusinessSchema.parse({
+        ...req.body,
+        userId,
+      });
+
+      const business = await storage.createBusiness(businessData);
+      res.json(business);
+    } catch (error: any) {
+      console.error('Error registering business:', error);
+      res.status(400).json({ error: error.message || 'Failed to register business' });
+    }
+  });
+
+  app.get('/api/business/profile', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const business = await storage.getBusinessByUserId(userId);
+      
+      if (!business) {
+        return res.status(404).json({ error: 'Business not found' });
+      }
+      
+      res.json(business);
+    } catch (error: any) {
+      console.error('Error fetching business profile:', error);
+      res.status(500).json({ error: 'Failed to fetch business profile' });
+    }
+  });
+
+  app.put('/api/business/profile', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const business = await storage.getBusinessByUserId(userId);
+      
+      if (!business) {
+        return res.status(404).json({ error: 'Business not found' });
+      }
+
+      const updates = insertBusinessSchema.partial().parse(req.body);
+      const updatedBusiness = await storage.updateBusiness(business.id, updates);
+      
+      res.json(updatedBusiness);
+    } catch (error: any) {
+      console.error('Error updating business profile:', error);
+      res.status(400).json({ error: error.message || 'Failed to update business profile' });
+    }
+  });
+
+  // B2B Bulk Order Routes
+  app.post('/api/bulk-orders', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const business = await storage.getBusinessByUserId(userId);
+      
+      if (!business) {
+        return res.status(403).json({ error: 'Only verified businesses can place bulk orders' });
+      }
+
+      const orderData = insertBulkOrderSchema.parse({
+        ...req.body,
+        businessId: business.id,
+      });
+
+      const order = await storage.createBulkOrder(orderData);
+      
+      // Add order items
+      if (req.body.items && Array.isArray(req.body.items)) {
+        for (const item of req.body.items) {
+          const itemData = insertBulkOrderItemSchema.parse({
+            ...item,
+            bulkOrderId: order.id,
+          });
+          await storage.createBulkOrderItem(itemData);
+        }
+      }
+
+      // Calculate discounts
+      await storage.calculateBulkOrderDiscount(order.id);
+
+      const fullOrder = await storage.getBulkOrder(order.id);
+      res.json(fullOrder);
+    } catch (error: any) {
+      console.error('Error creating bulk order:', error);
+      res.status(400).json({ error: error.message || 'Failed to create bulk order' });
+    }
+  });
+
+  app.get('/api/bulk-orders', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const business = await storage.getBusinessByUserId(userId);
+      const farmer = await storage.getFarmerByUserId(userId);
+
+      let orders;
+      if (business) {
+        orders = await storage.getBulkOrdersByBusiness(business.id);
+      } else if (farmer) {
+        orders = await storage.getBulkOrdersByFarmer(farmer.id);
+      } else {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+
+      res.json(orders);
+    } catch (error: any) {
+      console.error('Error fetching bulk orders:', error);
+      res.status(500).json({ error: 'Failed to fetch bulk orders' });
+    }
+  });
+
+  app.get('/api/bulk-orders/:orderId', isAuthenticated, async (req: any, res) => {
+    try {
+      const { orderId } = req.params;
+      const order = await storage.getBulkOrder(orderId);
+      
+      if (!order) {
+        return res.status(404).json({ error: 'Order not found' });
+      }
+
+      res.json(order);
+    } catch (error: any) {
+      console.error('Error fetching bulk order:', error);
+      res.status(500).json({ error: 'Failed to fetch bulk order' });
+    }
+  });
+
+  app.put('/api/bulk-orders/:orderId/status', isAuthenticated, async (req: any, res) => {
+    try {
+      const { orderId } = req.params;
+      const { status } = req.body;
+
+      await storage.updateBulkOrderStatus(orderId, status);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error('Error updating bulk order status:', error);
+      res.status(500).json({ error: 'Failed to update order status' });
+    }
+  });
+
+  // B2B Invoices Routes
+  app.get('/api/invoices', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const business = await storage.getBusinessByUserId(userId);
+      const farmer = await storage.getFarmerByUserId(userId);
+
+      let invoices;
+      if (business) {
+        invoices = await storage.getInvoicesByBusiness(business.id);
+      } else if (farmer) {
+        invoices = await storage.getInvoicesByFarmer(farmer.id);
+      } else {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+
+      res.json(invoices);
+    } catch (error: any) {
+      console.error('Error fetching invoices:', error);
+      res.status(500).json({ error: 'Failed to fetch invoices' });
+    }
+  });
+
+  app.get('/api/products/:productId/pricing', async (req: any, res) => {
+    try {
+      const { productId } = req.params;
+      const { tier } = req.query;
+      
+      const pricing = await storage.getProductPricing(productId, tier as string);
+      res.json(pricing);
+    } catch (error: any) {
+      console.error('Error fetching product pricing:', error);
+      res.status(500).json({ error: 'Failed to fetch product pricing' });
+    }
+  });
+
+  app.get('/api/business/analytics', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const business = await storage.getBusinessByUserId(userId);
+      
+      if (!business) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+
+      const analytics = await storage.getBusinessAnalytics(business.id);
+      res.json(analytics);
+    } catch (error: any) {
+      console.error('Error fetching business analytics:', error);
+      res.status(500).json({ error: 'Failed to fetch business analytics' });
     }
   });
 

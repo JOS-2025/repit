@@ -126,6 +126,17 @@ export default function Navigation() {
                 Community
               </Link>
               <Link 
+                href="/b2b" 
+                className={`px-3 py-2 text-sm font-medium ${
+                  location.startsWith('/b2b') 
+                    ? 'text-blue-600 border-b-2 border-blue-600' 
+                    : 'text-gray-500 hover:text-gray-900'
+                }`}
+                data-testid="link-b2b"
+              >
+                B2B Solutions
+              </Link>
+              <Link 
                 href="/about" 
                 className={`px-3 py-2 text-sm font-medium ${
                   location === '/about' 

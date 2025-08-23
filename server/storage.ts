@@ -30,6 +30,14 @@ import {
   iotSensors,
   sensorReadings,
   farmerRatings,
+  businesses,
+  bulkOrders,
+  bulkOrderItems,
+  recurringBulkOrders,
+  recurringBulkOrderItems,
+  invoices,
+  volumeDiscounts,
+  productPricing,
   type User,
   type UpsertUser,
   type InsertFarmer,
@@ -54,6 +62,22 @@ import {
   type DeliveryTrackingWithDriver,
   type FarmerRating,
   type InsertFarmerRating,
+  type InsertBusiness,
+  type Business,
+  type InsertBulkOrder,
+  type BulkOrder,
+  type InsertBulkOrderItem,
+  type BulkOrderItem,
+  type InsertRecurringBulkOrder,
+  type RecurringBulkOrder,
+  type InsertRecurringBulkOrderItem,
+  type RecurringBulkOrderItem,
+  type InsertInvoice,
+  type Invoice,
+  type InsertVolumeDiscount,
+  type VolumeDiscount,
+  type InsertProductPricing,
+  type ProductPricing,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc, lte, gte, sql } from "drizzle-orm";
@@ -183,6 +207,59 @@ export interface IStorage {
   getBlockchainRecords(productId: string): Promise<any[]>;
   createIoTSensor(sensor: any): Promise<any>;
   saveSensorReading(reading: any): Promise<any>;
+  
+  // B2B Business operations
+  createBusiness(business: InsertBusiness): Promise<Business>;
+  getBusinessByUserId(userId: string): Promise<Business | undefined>;
+  getBusiness(businessId: string): Promise<Business | undefined>;
+  updateBusinessVerification(businessId: string, status: string, verifierId?: string): Promise<void>;
+  updateBusiness(businessId: string, updates: Partial<InsertBusiness>): Promise<Business>;
+  getBusinesses(status?: string): Promise<Business[]>;
+  
+  // B2B Bulk Order operations
+  createBulkOrder(order: InsertBulkOrder): Promise<BulkOrder>;
+  createBulkOrderItem(item: InsertBulkOrderItem): Promise<BulkOrderItem>;
+  getBulkOrdersByBusiness(businessId: string): Promise<any[]>;
+  getBulkOrdersByFarmer(farmerId: string): Promise<any[]>;
+  getBulkOrder(orderId: string): Promise<any>;
+  updateBulkOrderStatus(orderId: string, status: string): Promise<void>;
+  calculateBulkOrderDiscount(orderId: string): Promise<void>;
+  
+  // B2B Recurring Order operations
+  createRecurringBulkOrder(order: InsertRecurringBulkOrder): Promise<RecurringBulkOrder>;
+  createRecurringBulkOrderItem(item: InsertRecurringBulkOrderItem): Promise<RecurringBulkOrderItem>;
+  getRecurringBulkOrdersByBusiness(businessId: string): Promise<any[]>;
+  getRecurringBulkOrdersByFarmer(farmerId: string): Promise<any[]>;
+  updateRecurringBulkOrder(orderId: string, updates: Partial<InsertRecurringBulkOrder>): Promise<void>;
+  processRecurringBulkOrders(): Promise<void>;
+  
+  // B2B Invoice operations
+  createInvoice(invoice: InsertInvoice): Promise<Invoice>;
+  getInvoicesByBusiness(businessId: string): Promise<Invoice[]>;
+  getInvoicesByFarmer(farmerId: string): Promise<Invoice[]>;
+  getInvoice(invoiceId: string): Promise<Invoice | undefined>;
+  updateInvoiceStatus(invoiceId: string, status: string): Promise<void>;
+  generateInvoiceNumber(): Promise<string>;
+  
+  // B2B Volume Discount operations
+  createVolumeDiscount(discount: InsertVolumeDiscount): Promise<VolumeDiscount>;
+  getVolumeDiscountsByFarmer(farmerId: string): Promise<VolumeDiscount[]>;
+  getVolumeDiscountsByProduct(productId: string): Promise<VolumeDiscount[]>;
+  updateVolumeDiscount(discountId: string, updates: Partial<InsertVolumeDiscount>): Promise<void>;
+  deleteVolumeDiscount(discountId: string): Promise<void>;
+  getApplicableVolumeDiscount(productId: string, quantity: number): Promise<VolumeDiscount | undefined>;
+  
+  // B2B Product Pricing operations
+  createProductPricing(pricing: InsertProductPricing): Promise<ProductPricing>;
+  getProductPricing(productId: string, tier?: string): Promise<ProductPricing[]>;
+  updateProductPricing(pricingId: string, updates: Partial<InsertProductPricing>): Promise<void>;
+  deleteProductPricing(pricingId: string): Promise<void>;
+  getProductPrice(productId: string, tier: string, quantity?: number): Promise<number>;
+  
+  // B2B Analytics operations
+  getBusinessAnalytics(businessId: string): Promise<any>;
+  getFarmerB2BAnalytics(farmerId: string): Promise<any>;
+  getB2BMarketInsights(): Promise<any>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1315,6 +1392,662 @@ export class DatabaseStorage implements IStorage {
       .values(reading)
       .returning();
     return newReading;
+  }
+  // ============= B2B IMPLEMENTATIONS =============
+  
+  // B2B Business operations
+  async createBusiness(business: InsertBusiness): Promise<Business> {
+    const [newBusiness] = await db
+      .insert(businesses)
+      .values(business)
+      .returning();
+    return newBusiness;
+  }
+
+  async getBusinessByUserId(userId: string): Promise<Business | undefined> {
+    const [business] = await db
+      .select()
+      .from(businesses)
+      .where(eq(businesses.userId, userId));
+    return business;
+  }
+
+  async getBusiness(businessId: string): Promise<Business | undefined> {
+    const [business] = await db
+      .select()
+      .from(businesses)
+      .where(eq(businesses.id, businessId));
+    return business;
+  }
+
+  async updateBusinessVerification(businessId: string, status: string, verifierId?: string): Promise<void> {
+    await db
+      .update(businesses)
+      .set({
+        verificationStatus: status,
+        verifiedAt: status === 'verified' ? new Date() : null,
+        verifiedBy: verifierId || null,
+        updatedAt: new Date(),
+      })
+      .where(eq(businesses.id, businessId));
+  }
+
+  async updateBusiness(businessId: string, updates: Partial<InsertBusiness>): Promise<Business> {
+    const [updatedBusiness] = await db
+      .update(businesses)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(businesses.id, businessId))
+      .returning();
+    return updatedBusiness;
+  }
+
+  async getBusinesses(status?: string): Promise<Business[]> {
+    const query = db.select().from(businesses);
+    if (status) {
+      return await query.where(eq(businesses.verificationStatus, status));
+    }
+    return await query;
+  }
+
+  // B2B Bulk Order operations
+  async createBulkOrder(order: InsertBulkOrder): Promise<BulkOrder> {
+    const [newOrder] = await db
+      .insert(bulkOrders)
+      .values(order)
+      .returning();
+    return newOrder;
+  }
+
+  async createBulkOrderItem(item: InsertBulkOrderItem): Promise<BulkOrderItem> {
+    const [newItem] = await db
+      .insert(bulkOrderItems)
+      .values(item)
+      .returning();
+    return newItem;
+  }
+
+  async getBulkOrdersByBusiness(businessId: string): Promise<any[]> {
+    return await db
+      .select({
+        id: bulkOrders.id,
+        businessId: bulkOrders.businessId,
+        farmerId: bulkOrders.farmerId,
+        totalAmount: bulkOrders.totalAmount,
+        discountPercent: bulkOrders.discountPercent,
+        discountAmount: bulkOrders.discountAmount,
+        finalAmount: bulkOrders.finalAmount,
+        status: bulkOrders.status,
+        deliveryDate: bulkOrders.deliveryDate,
+        specialInstructions: bulkOrders.specialInstructions,
+        createdAt: bulkOrders.createdAt,
+        farmerName: farmers.businessName,
+        farmerLocation: farmers.location,
+      })
+      .from(bulkOrders)
+      .leftJoin(farmers, eq(bulkOrders.farmerId, farmers.id))
+      .where(eq(bulkOrders.businessId, businessId))
+      .orderBy(desc(bulkOrders.createdAt));
+  }
+
+  async getBulkOrdersByFarmer(farmerId: string): Promise<any[]> {
+    return await db
+      .select({
+        id: bulkOrders.id,
+        businessId: bulkOrders.businessId,
+        farmerId: bulkOrders.farmerId,
+        totalAmount: bulkOrders.totalAmount,
+        discountPercent: bulkOrders.discountPercent,
+        discountAmount: bulkOrders.discountAmount,
+        finalAmount: bulkOrders.finalAmount,
+        status: bulkOrders.status,
+        deliveryDate: bulkOrders.deliveryDate,
+        specialInstructions: bulkOrders.specialInstructions,
+        createdAt: bulkOrders.createdAt,
+        businessName: businesses.businessName,
+        businessEmail: businesses.businessEmail,
+      })
+      .from(bulkOrders)
+      .leftJoin(businesses, eq(bulkOrders.businessId, businesses.id))
+      .where(eq(bulkOrders.farmerId, farmerId))
+      .orderBy(desc(bulkOrders.createdAt));
+  }
+
+  async getBulkOrder(orderId: string): Promise<any> {
+    const [order] = await db
+      .select({
+        id: bulkOrders.id,
+        businessId: bulkOrders.businessId,
+        farmerId: bulkOrders.farmerId,
+        totalAmount: bulkOrders.totalAmount,
+        discountPercent: bulkOrders.discountPercent,
+        discountAmount: bulkOrders.discountAmount,
+        finalAmount: bulkOrders.finalAmount,
+        status: bulkOrders.status,
+        deliveryDate: bulkOrders.deliveryDate,
+        specialInstructions: bulkOrders.specialInstructions,
+        createdAt: bulkOrders.createdAt,
+        businessName: businesses.businessName,
+        businessEmail: businesses.businessEmail,
+        farmerName: farmers.businessName,
+        farmerLocation: farmers.location,
+      })
+      .from(bulkOrders)
+      .leftJoin(businesses, eq(bulkOrders.businessId, businesses.id))
+      .leftJoin(farmers, eq(bulkOrders.farmerId, farmers.id))
+      .where(eq(bulkOrders.id, orderId));
+
+    if (!order) return undefined;
+
+    // Get order items
+    const items = await db
+      .select({
+        id: bulkOrderItems.id,
+        productId: bulkOrderItems.productId,
+        quantity: bulkOrderItems.quantity,
+        unitPrice: bulkOrderItems.unitPrice,
+        totalPrice: bulkOrderItems.totalPrice,
+        productName: products.name,
+        productImage: products.imageUrl,
+      })
+      .from(bulkOrderItems)
+      .leftJoin(products, eq(bulkOrderItems.productId, products.id))
+      .where(eq(bulkOrderItems.bulkOrderId, orderId));
+
+    return { ...order, items };
+  }
+
+  async updateBulkOrderStatus(orderId: string, status: string): Promise<void> {
+    await db
+      .update(bulkOrders)
+      .set({ status, updatedAt: new Date() })
+      .where(eq(bulkOrders.id, orderId));
+  }
+
+  async calculateBulkOrderDiscount(orderId: string): Promise<void> {
+    const [order] = await db
+      .select()
+      .from(bulkOrders)
+      .where(eq(bulkOrders.id, orderId));
+
+    if (!order) return;
+
+    // Get all items for this order
+    const items = await db
+      .select()
+      .from(bulkOrderItems)
+      .where(eq(bulkOrderItems.bulkOrderId, orderId));
+
+    let totalDiscount = 0;
+    
+    // Calculate volume discounts for each item
+    for (const item of items) {
+      const discount = await this.getApplicableVolumeDiscount(item.productId, item.quantity);
+      if (discount) {
+        const itemDiscount = (item.totalPrice * discount.discountPercent) / 100;
+        totalDiscount += itemDiscount;
+      }
+    }
+
+    const discountPercent = order.totalAmount > 0 ? (totalDiscount / order.totalAmount) * 100 : 0;
+    const finalAmount = order.totalAmount - totalDiscount;
+
+    await db
+      .update(bulkOrders)
+      .set({
+        discountPercent: discountPercent,
+        discountAmount: totalDiscount,
+        finalAmount: finalAmount,
+        updatedAt: new Date(),
+      })
+      .where(eq(bulkOrders.id, orderId));
+  }
+
+  // B2B Recurring Order operations
+  async createRecurringBulkOrder(order: InsertRecurringBulkOrder): Promise<RecurringBulkOrder> {
+    const [newOrder] = await db
+      .insert(recurringBulkOrders)
+      .values(order)
+      .returning();
+    return newOrder;
+  }
+
+  async createRecurringBulkOrderItem(item: InsertRecurringBulkOrderItem): Promise<RecurringBulkOrderItem> {
+    const [newItem] = await db
+      .insert(recurringBulkOrderItems)
+      .values(item)
+      .returning();
+    return newItem;
+  }
+
+  async getRecurringBulkOrdersByBusiness(businessId: string): Promise<any[]> {
+    return await db
+      .select({
+        id: recurringBulkOrders.id,
+        businessId: recurringBulkOrders.businessId,
+        farmerId: recurringBulkOrders.farmerId,
+        frequency: recurringBulkOrders.frequency,
+        nextDelivery: recurringBulkOrders.nextDelivery,
+        lastDelivery: recurringBulkOrders.lastDelivery,
+        isActive: recurringBulkOrders.isActive,
+        totalDeliveries: recurringBulkOrders.totalDeliveries,
+        createdAt: recurringBulkOrders.createdAt,
+        farmerName: farmers.businessName,
+      })
+      .from(recurringBulkOrders)
+      .leftJoin(farmers, eq(recurringBulkOrders.farmerId, farmers.id))
+      .where(eq(recurringBulkOrders.businessId, businessId))
+      .orderBy(desc(recurringBulkOrders.createdAt));
+  }
+
+  async getRecurringBulkOrdersByFarmer(farmerId: string): Promise<any[]> {
+    return await db
+      .select({
+        id: recurringBulkOrders.id,
+        businessId: recurringBulkOrders.businessId,
+        farmerId: recurringBulkOrders.farmerId,
+        frequency: recurringBulkOrders.frequency,
+        nextDelivery: recurringBulkOrders.nextDelivery,
+        lastDelivery: recurringBulkOrders.lastDelivery,
+        isActive: recurringBulkOrders.isActive,
+        totalDeliveries: recurringBulkOrders.totalDeliveries,
+        createdAt: recurringBulkOrders.createdAt,
+        businessName: businesses.businessName,
+      })
+      .from(recurringBulkOrders)
+      .leftJoin(businesses, eq(recurringBulkOrders.businessId, businesses.id))
+      .where(eq(recurringBulkOrders.farmerId, farmerId))
+      .orderBy(desc(recurringBulkOrders.createdAt));
+  }
+
+  async updateRecurringBulkOrder(orderId: string, updates: Partial<InsertRecurringBulkOrder>): Promise<void> {
+    await db
+      .update(recurringBulkOrders)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(recurringBulkOrders.id, orderId));
+  }
+
+  async processRecurringBulkOrders(): Promise<void> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Get all active recurring orders due today
+    const dueOrders = await db
+      .select()
+      .from(recurringBulkOrders)
+      .where(
+        and(
+          eq(recurringBulkOrders.isActive, true),
+          lte(recurringBulkOrders.nextDelivery, today)
+        )
+      );
+
+    for (const order of dueOrders) {
+      // Get order items
+      const items = await db
+        .select()
+        .from(recurringBulkOrderItems)
+        .where(eq(recurringBulkOrderItems.recurringOrderId, order.id));
+
+      // Create new bulk order
+      const [newBulkOrder] = await db
+        .insert(bulkOrders)
+        .values({
+          businessId: order.businessId,
+          farmerId: order.farmerId,
+          totalAmount: 0, // Will be calculated
+          deliveryDate: order.nextDelivery,
+          status: 'pending',
+        })
+        .returning();
+
+      let totalAmount = 0;
+
+      // Create bulk order items
+      for (const item of items) {
+        const itemTotal = item.quantity * item.unitPrice;
+        totalAmount += itemTotal;
+
+        await db.insert(bulkOrderItems).values({
+          bulkOrderId: newBulkOrder.id,
+          productId: item.productId,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          totalPrice: itemTotal,
+        });
+      }
+
+      // Update bulk order total
+      await db
+        .update(bulkOrders)
+        .set({ totalAmount, finalAmount: totalAmount })
+        .where(eq(bulkOrders.id, newBulkOrder.id));
+
+      // Calculate discounts
+      await this.calculateBulkOrderDiscount(newBulkOrder.id);
+
+      // Update recurring order
+      const nextDelivery = new Date(order.nextDelivery);
+      switch (order.frequency) {
+        case 'weekly':
+          nextDelivery.setDate(nextDelivery.getDate() + 7);
+          break;
+        case 'biweekly':
+          nextDelivery.setDate(nextDelivery.getDate() + 14);
+          break;
+        case 'monthly':
+          nextDelivery.setMonth(nextDelivery.getMonth() + 1);
+          break;
+      }
+
+      await db
+        .update(recurringBulkOrders)
+        .set({
+          lastDelivery: order.nextDelivery,
+          nextDelivery: nextDelivery,
+          totalDeliveries: order.totalDeliveries + 1,
+          updatedAt: new Date(),
+        })
+        .where(eq(recurringBulkOrders.id, order.id));
+    }
+  }
+
+  // B2B Invoice operations
+  async createInvoice(invoice: InsertInvoice): Promise<Invoice> {
+    const [newInvoice] = await db
+      .insert(invoices)
+      .values(invoice)
+      .returning();
+    return newInvoice;
+  }
+
+  async getInvoicesByBusiness(businessId: string): Promise<Invoice[]> {
+    return await db
+      .select()
+      .from(invoices)
+      .where(eq(invoices.businessId, businessId))
+      .orderBy(desc(invoices.createdAt));
+  }
+
+  async getInvoicesByFarmer(farmerId: string): Promise<Invoice[]> {
+    return await db
+      .select()
+      .from(invoices)
+      .where(eq(invoices.farmerId, farmerId))
+      .orderBy(desc(invoices.createdAt));
+  }
+
+  async getInvoice(invoiceId: string): Promise<Invoice | undefined> {
+    const [invoice] = await db
+      .select()
+      .from(invoices)
+      .where(eq(invoices.id, invoiceId));
+    return invoice;
+  }
+
+  async updateInvoiceStatus(invoiceId: string, status: string): Promise<void> {
+    const updates: any = { status, updatedAt: new Date() };
+    if (status === 'paid') {
+      updates.paidDate = new Date();
+    }
+
+    await db
+      .update(invoices)
+      .set(updates)
+      .where(eq(invoices.id, invoiceId));
+  }
+
+  async generateInvoiceNumber(): Promise<string> {
+    const year = new Date().getFullYear();
+    const month = String(new Date().getMonth() + 1).padStart(2, '0');
+    
+    // Get count of invoices this month
+    const startOfMonth = new Date(year, new Date().getMonth(), 1);
+    const endOfMonth = new Date(year, new Date().getMonth() + 1, 0);
+    
+    const count = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(invoices)
+      .where(
+        and(
+          gte(invoices.createdAt, startOfMonth),
+          lte(invoices.createdAt, endOfMonth)
+        )
+      );
+
+    const invoiceCount = count[0]?.count || 0;
+    const sequenceNumber = String(invoiceCount + 1).padStart(4, '0');
+    
+    return `INV-${year}${month}-${sequenceNumber}`;
+  }
+
+  // B2B Volume Discount operations
+  async createVolumeDiscount(discount: InsertVolumeDiscount): Promise<VolumeDiscount> {
+    const [newDiscount] = await db
+      .insert(volumeDiscounts)
+      .values(discount)
+      .returning();
+    return newDiscount;
+  }
+
+  async getVolumeDiscountsByFarmer(farmerId: string): Promise<VolumeDiscount[]> {
+    return await db
+      .select()
+      .from(volumeDiscounts)
+      .where(eq(volumeDiscounts.farmerId, farmerId))
+      .orderBy(desc(volumeDiscounts.createdAt));
+  }
+
+  async getVolumeDiscountsByProduct(productId: string): Promise<VolumeDiscount[]> {
+    return await db
+      .select()
+      .from(volumeDiscounts)
+      .where(
+        and(
+          eq(volumeDiscounts.productId, productId),
+          eq(volumeDiscounts.isActive, true)
+        )
+      )
+      .orderBy(asc(volumeDiscounts.minQuantity));
+  }
+
+  async updateVolumeDiscount(discountId: string, updates: Partial<InsertVolumeDiscount>): Promise<void> {
+    await db
+      .update(volumeDiscounts)
+      .set(updates)
+      .where(eq(volumeDiscounts.id, discountId));
+  }
+
+  async deleteVolumeDiscount(discountId: string): Promise<void> {
+    await db
+      .delete(volumeDiscounts)
+      .where(eq(volumeDiscounts.id, discountId));
+  }
+
+  async getApplicableVolumeDiscount(productId: string, quantity: number): Promise<VolumeDiscount | undefined> {
+    const [discount] = await db
+      .select()
+      .from(volumeDiscounts)
+      .where(
+        and(
+          eq(volumeDiscounts.productId, productId),
+          eq(volumeDiscounts.isActive, true),
+          lte(volumeDiscounts.minQuantity, quantity)
+        )
+      )
+      .orderBy(desc(volumeDiscounts.minQuantity))
+      .limit(1);
+    
+    return discount;
+  }
+
+  // B2B Product Pricing operations
+  async createProductPricing(pricing: InsertProductPricing): Promise<ProductPricing> {
+    const [newPricing] = await db
+      .insert(productPricing)
+      .values(pricing)
+      .returning();
+    return newPricing;
+  }
+
+  async getProductPricing(productId: string, tier?: string): Promise<ProductPricing[]> {
+    const query = db
+      .select()
+      .from(productPricing)
+      .where(eq(productPricing.productId, productId));
+    
+    if (tier) {
+      return await query.where(eq(productPricing.tier, tier));
+    }
+    
+    return await query.orderBy(asc(productPricing.minQuantity));
+  }
+
+  async updateProductPricing(pricingId: string, updates: Partial<InsertProductPricing>): Promise<void> {
+    await db
+      .update(productPricing)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(productPricing.id, pricingId));
+  }
+
+  async deleteProductPricing(pricingId: string): Promise<void> {
+    await db
+      .delete(productPricing)
+      .where(eq(productPricing.id, pricingId));
+  }
+
+  async getProductPrice(productId: string, tier: string, quantity: number = 1): Promise<number> {
+    // Get base product price first
+    const [product] = await db
+      .select()
+      .from(products)
+      .where(eq(products.id, productId));
+    
+    if (!product) return 0;
+
+    // Check for tier-specific pricing
+    const [tierPricing] = await db
+      .select()
+      .from(productPricing)
+      .where(
+        and(
+          eq(productPricing.productId, productId),
+          eq(productPricing.tier, tier),
+          lte(productPricing.minQuantity, quantity)
+        )
+      )
+      .orderBy(desc(productPricing.minQuantity))
+      .limit(1);
+
+    if (tierPricing) {
+      return parseFloat(tierPricing.price);
+    }
+
+    // Return base price if no tier pricing found
+    return parseFloat(product.price);
+  }
+
+  // B2B Analytics operations
+  async getBusinessAnalytics(businessId: string): Promise<any> {
+    // Get total orders and spending
+    const orderStats = await db
+      .select({
+        totalOrders: sql<number>`count(*)`,
+        totalSpent: sql<number>`sum(final_amount)`,
+        avgOrderValue: sql<number>`avg(final_amount)`,
+      })
+      .from(bulkOrders)
+      .where(eq(bulkOrders.businessId, businessId));
+
+    // Get recent orders
+    const recentOrders = await db
+      .select({
+        id: bulkOrders.id,
+        finalAmount: bulkOrders.finalAmount,
+        status: bulkOrders.status,
+        createdAt: bulkOrders.createdAt,
+      })
+      .from(bulkOrders)
+      .where(eq(bulkOrders.businessId, businessId))
+      .orderBy(desc(bulkOrders.createdAt))
+      .limit(5);
+
+    // Get monthly spending
+    const monthlySpending = await db
+      .select({
+        month: sql<string>`to_char(created_at, 'YYYY-MM')`,
+        totalSpent: sql<number>`sum(final_amount)`,
+      })
+      .from(bulkOrders)
+      .where(eq(bulkOrders.businessId, businessId))
+      .groupBy(sql`to_char(created_at, 'YYYY-MM')`)
+      .orderBy(sql`to_char(created_at, 'YYYY-MM') DESC`)
+      .limit(12);
+
+    return {
+      orderStats: orderStats[0] || { totalOrders: 0, totalSpent: 0, avgOrderValue: 0 },
+      recentOrders,
+      monthlySpending,
+    };
+  }
+
+  async getFarmerB2BAnalytics(farmerId: string): Promise<any> {
+    // Get total B2B revenue
+    const revenueStats = await db
+      .select({
+        totalOrders: sql<number>`count(*)`,
+        totalRevenue: sql<number>`sum(final_amount)`,
+        avgOrderValue: sql<number>`avg(final_amount)`,
+      })
+      .from(bulkOrders)
+      .where(eq(bulkOrders.farmerId, farmerId));
+
+    // Get top business customers
+    const topCustomers = await db
+      .select({
+        businessId: bulkOrders.businessId,
+        businessName: businesses.businessName,
+        totalOrders: sql<number>`count(*)`,
+        totalSpent: sql<number>`sum(final_amount)`,
+      })
+      .from(bulkOrders)
+      .leftJoin(businesses, eq(bulkOrders.businessId, businesses.id))
+      .where(eq(bulkOrders.farmerId, farmerId))
+      .groupBy(bulkOrders.businessId, businesses.businessName)
+      .orderBy(sql`sum(final_amount) DESC`)
+      .limit(5);
+
+    return {
+      revenueStats: revenueStats[0] || { totalOrders: 0, totalRevenue: 0, avgOrderValue: 0 },
+      topCustomers,
+    };
+  }
+
+  async getB2BMarketInsights(): Promise<any> {
+    // Get overall B2B statistics
+    const overallStats = await db
+      .select({
+        totalBusinesses: sql<number>`count(distinct business_id)`,
+        totalOrders: sql<number>`count(*)`,
+        totalVolume: sql<number>`sum(final_amount)`,
+      })
+      .from(bulkOrders);
+
+    // Get growth trends
+    const monthlyGrowth = await db
+      .select({
+        month: sql<string>`to_char(created_at, 'YYYY-MM')`,
+        orderCount: sql<number>`count(*)`,
+        revenue: sql<number>`sum(final_amount)`,
+      })
+      .from(bulkOrders)
+      .groupBy(sql`to_char(created_at, 'YYYY-MM')`)
+      .orderBy(sql`to_char(created_at, 'YYYY-MM') DESC`)
+      .limit(12);
+
+    return {
+      overallStats: overallStats[0] || { totalBusinesses: 0, totalOrders: 0, totalVolume: 0 },
+      monthlyGrowth,
+    };
   }
 }
 
