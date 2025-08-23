@@ -133,6 +133,7 @@ export async function setupAuth(app: Express) {
       verify,
     );
     passport.use(strategy);
+    console.log("[AUTH] Registered strategy for domain:", domain);
   }
 
   passport.serializeUser((user: Express.User, cb) => cb(null, user));
@@ -141,7 +142,16 @@ export async function setupAuth(app: Express) {
   app.get("/api/login", (req, res, next) => {
     console.log("[AUTH] Login attempt for hostname:", req.hostname);
     
-    const strategyName = `replitauth:${req.hostname}`;
+    // Handle localhost for development
+    let hostname = req.hostname;
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      // Get the first domain from REPLIT_DOMAINS for localhost development
+      const domains = process.env.REPLIT_DOMAINS!.split(",");
+      hostname = domains[0];
+      console.log("[AUTH] Using first domain for localhost:", hostname);
+    }
+    
+    const strategyName = `replitauth:${hostname}`;
     console.log("[AUTH] Using strategy:", strategyName);
     
     passport.authenticate(strategyName, {
@@ -152,11 +162,20 @@ export async function setupAuth(app: Express) {
   app.get("/api/callback", (req, res, next) => {
     console.log("[AUTH] Callback received for hostname:", req.hostname);
     
-    const strategyName = `replitauth:${req.hostname}`;
+    // Handle localhost for development
+    let hostname = req.hostname;
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      // Get the first domain from REPLIT_DOMAINS for localhost development
+      const domains = process.env.REPLIT_DOMAINS!.split(",");
+      hostname = domains[0];
+      console.log("[AUTH] Using first domain for localhost:", hostname);
+    }
+    
+    const strategyName = `replitauth:${hostname}`;
     
     passport.authenticate(strategyName, {
       successRedirect: "/",
-      failureRedirect: "/",
+      failureRedirect: "/?error=auth_failed",
     })(req, res, next);
   });
 
