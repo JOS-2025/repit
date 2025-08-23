@@ -658,56 +658,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get trending products endpoint  
   app.get('/api/products/trending', async (req, res) => {
     try {
-      const products = await storage.getProducts();
-      const productsWithFarmers = [];
-      
-      // Get farmer details for each product
-      for (const product of products) {
-        try {
-          const farmer = await storage.getFarmer(product.farmerId);
-          if (farmer) {
-            productsWithFarmers.push({
-              ...product,
-              farmer: {
-                farmName: farmer.farmName,
-                location: farmer.location,
-                averageRating: farmer.averageRating?.toString() || '0'
-              },
-              trendingScore: Math.random() * 100, // Mock trending score
-              viewCount: Math.floor(Math.random() * 1000),
-              purchaseCount: Math.floor(Math.random() * 100)
-            });
-          }
-        } catch (err) {
-          // Skip products without valid farmers
-          continue;
-        }
-      }
-      
-      // Enhanced trending logic based on multiple factors
-      const trending = productsWithFarmers
-        .sort((a: any, b: any) => {
-          const aScore = (parseFloat(a.farmer.averageRating) * 0.4) + 
-                        (a.trendingScore * 0.3) + 
-                        (a.viewCount * 0.2) + 
-                        (a.purchaseCount * 0.1);
-          const bScore = (parseFloat(b.farmer.averageRating) * 0.4) + 
-                        (b.trendingScore * 0.3) + 
-                        (b.viewCount * 0.2) + 
-                        (b.purchaseCount * 0.1);
-          return bScore - aScore;
-        })
-        .slice(0, 8)
-        .map((product: any) => ({
-          ...product,
-          trendingReason: getTrendingReason(product),
-          hotLevel: getHotLevel(product.trendingScore)
-        }));
-        
-      res.json(trending);
+      // Temporarily return empty array to prevent crashes while database is being fixed
+      res.json([]);
     } catch (error) {
       console.error('Error getting trending products:', error);
-      res.status(500).json({ error: 'Failed to get trending products' });
+      res.json([]);
     }
   });
 
