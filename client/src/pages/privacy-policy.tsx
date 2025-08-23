@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Navigation from "@/components/navigation";
+import Footer from "@/components/footer";
 
 export default function PrivacyPolicy() {
   return (
@@ -195,6 +196,8 @@ export default function PrivacyPolicy() {
           </CardContent>
         </Card>
       </div>
+      
+      <Footer />
     </div>
   );
 }

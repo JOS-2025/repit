@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import Navigation from '@/components/navigation';
+import Footer from '@/components/footer';
 import WishlistButton from '@/components/wishlist-button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -413,6 +414,8 @@ export default function Wishlist() {
           </div>
         )}
       </div>
+      
+      <Footer />
     </div>
   );
 }

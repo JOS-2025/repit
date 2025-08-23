@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Separator } from '@/components/ui/separator';
 import Navigation from '@/components/navigation';
+import Footer from '@/components/footer';
 import { 
   CreditCard, 
   Smartphone, 
@@ -390,6 +391,8 @@ export default function Checkout() {
           </div>
         </div>
       </div>
+      
+      <Footer />
     </div>
   );
 }

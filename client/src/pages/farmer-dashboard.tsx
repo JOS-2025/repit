@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import Navigation from "@/components/navigation";
+import Footer from "@/components/footer";
 import ProductUpload from "@/components/product-upload";
 import FileUpload from "@/components/file-upload";
 import { Button } from "@/components/ui/button";
@@ -731,6 +732,8 @@ export default function FarmerDashboard() {
         open={showRegistration}
         onClose={() => setShowRegistration(false)}
       />
+      
+      <Footer />
     </div>
   );
 }

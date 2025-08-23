@@ -1,5 +1,6 @@
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import Footer from '@/components/footer';
 
 export default function TermsConditions() {
   return (
@@ -214,6 +215,8 @@ export default function TermsConditions() {
           </CardContent>
         </Card>
       </div>
+      
+      <Footer />
     </div>
   );
 }
