@@ -1,6 +1,7 @@
 import express, { type Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { randomUUID } from "crypto";
 // Removed old Replit Auth import
 import { escrowService } from "./escrowService";
 import { setupGPSTracking, updateDriverLocation, updateDeliveryStatus, calculateETA } from "./gpsTracking";
@@ -1988,31 +1989,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Create sample users first
-      const user1 = await storage.upsertUser({
-        id: 'sample-user-1',
-        email: 'farmer1@greenvalley.com',
-        firstName: 'John',
-        lastName: 'Kiprotich',
-        profileImageUrl: null,
-      });
+      // Create sample users first, check if they already exist
+      let user1 = await storage.getUserByEmail('farmer1@greenvalley.com');
+      if (!user1) {
+        user1 = await storage.createUser({
+          id: randomUUID(),
+          email: 'farmer1@greenvalley.com',
+          password: 'samplepass123', // Sample password for demo purposes
+          firstName: 'John',
+          lastName: 'Kiprotich',
+          profileImageUrl: null,
+        });
+      }
 
-      const user2 = await storage.upsertUser({
-        id: 'sample-user-2',
-        email: 'farmer2@sunshine.com', 
-        firstName: 'Mary',
-        lastName: 'Wanjiku',
-        profileImageUrl: null,
-      });
+      let user2 = await storage.getUserByEmail('farmer2@sunshine.com');
+      if (!user2) {
+        user2 = await storage.createUser({
+          id: randomUUID(),
+          email: 'farmer2@sunshine.com',
+          password: 'samplepass123', // Sample password for demo purposes
+          firstName: 'Mary',
+          lastName: 'Wanjiku',
+          profileImageUrl: null,
+        });
+      }
 
       // Create sample farmers
       const farmer1 = await storage.createFarmer({
         userId: user1.id,
         farmName: 'Green Valley Farm',
         location: 'Kiambu County, Kenya',
-        experience: '10 years',
-        certifications: ['Organic', 'Fair Trade'],
-        specialties: ['vegetables', 'fruits'],
+        // experience: '10 years', // Remove non-schema field
+        // certifications: ['Organic', 'Fair Trade'], // Remove non-schema field
+        // specialties: ['vegetables', 'fruits'], // Remove non-schema field
         isVerified: true,
         averageRating: 4.8
       });
@@ -2021,9 +2030,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: user2.id, 
         farmName: 'Sunshine Organic Farm',
         location: 'Nakuru County, Kenya',
-        experience: '7 years',
-        certifications: ['Organic'],
-        specialties: ['dairy', 'grains'],
+        // experience: '7 years', // Remove non-schema field
+        // certifications: ['Organic'], // Remove non-schema field
+        // specialties: ['dairy', 'grains'], // Remove non-schema field
         isVerified: true,
         averageRating: 4.6
       });

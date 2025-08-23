@@ -67,7 +67,7 @@ export default function Marketplace() {
   });
 
   const { data: aiRecommendations = [] } = useQuery<Product[]>({
-    queryKey: ["/api/ai/recommendations", { searchTerm, category: selectedCategory }],
+    queryKey: ["/api/ai/recommendations", searchTerm, selectedCategory],
     enabled: searchTerm.length > 2 || selectedCategory !== "all",
   });
 
@@ -76,7 +76,8 @@ export default function Marketplace() {
     mutationFn: async (query: string): Promise<string[]> => {
       if (query.length < 2) return [];
       const response = await apiRequest("POST", "/api/ai/search-suggestions", { query });
-      return response.suggestions || [];
+      const data = await response.json();
+      return data.suggestions || [];
     },
     onSuccess: (suggestions: string[]) => {
       setSearchSuggestions(suggestions);

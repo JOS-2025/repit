@@ -1693,7 +1693,7 @@ export class DatabaseStorage implements IStorage {
         .values({
           businessId: order.businessId,
           farmerId: order.farmerId,
-          totalAmount: 0, // Will be calculated
+          totalAmount: '0', // Will be calculated
           deliveryDate: order.nextDelivery,
           status: 'pending',
         })
@@ -1703,7 +1703,7 @@ export class DatabaseStorage implements IStorage {
 
       // Create bulk order items
       for (const item of items) {
-        const itemTotal = item.quantity * item.unitPrice;
+        const itemTotal = item.quantity * parseFloat(item.unitPrice.toString());
         totalAmount += itemTotal;
 
         await db.insert(bulkOrderItems).values({
@@ -1718,7 +1718,7 @@ export class DatabaseStorage implements IStorage {
       // Update bulk order total
       await db
         .update(bulkOrders)
-        .set({ totalAmount, finalAmount: totalAmount })
+        .set({ totalAmount: totalAmount.toString(), finalAmount: totalAmount.toString() })
         .where(eq(bulkOrders.id, newBulkOrder.id));
 
       // Calculate discounts
@@ -1730,7 +1730,7 @@ export class DatabaseStorage implements IStorage {
         case 'weekly':
           nextDelivery.setDate(nextDelivery.getDate() + 7);
           break;
-        case 'biweekly':
+        case 'bi_weekly':
           nextDelivery.setDate(nextDelivery.getDate() + 14);
           break;
         case 'monthly':
@@ -1743,7 +1743,7 @@ export class DatabaseStorage implements IStorage {
         .set({
           lastDelivery: order.nextDelivery,
           nextDelivery: nextDelivery,
-          totalDeliveries: order.totalDeliveries + 1,
+          totalDeliveries: (order.totalDeliveries ?? 0) + 1,
           updatedAt: new Date(),
         })
         .where(eq(recurringBulkOrders.id, order.id));
@@ -1895,7 +1895,11 @@ export class DatabaseStorage implements IStorage {
       .where(eq(productPricing.productId, productId));
     
     if (tier) {
-      return await query.where(eq(productPricing.tier, tier));
+      return await query
+        .where(and(
+          eq(productPricing.productId, productId),
+          eq(productPricing.tier, tier)
+        ));
     }
     
     return await query.orderBy(asc(productPricing.minQuantity));
