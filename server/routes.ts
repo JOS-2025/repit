@@ -533,10 +533,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get trending products endpoint  
   app.get('/api/products/trending', async (req, res) => {
     try {
-      const products = await storage.getProductsWithFarmer();
+      const products = await storage.getProductsByFarmer();
       // Mock trending logic - in real app, this would be based on sales data, views, etc.
       const trending = products
-        .sort((a: any, b: any) => parseFloat(b.farmer.averageRating || '0') - parseFloat(a.farmer.averageRating || '0'))
+        .sort((a: any, b: any) => parseFloat(b.farmer?.averageRating || '0') - parseFloat(a.farmer?.averageRating || '0'))
         .slice(0, 8);
       res.json(trending);
     } catch (error) {
@@ -1459,7 +1459,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         description: p.description || ''
       }));
       
-      const recommendations = await aiService.generateProductRecommendations(userHistory, productData);
+      const recommendations = await aiService.getPersonalizedRecommendations(userHistory, productData, {}, 5);
       
       // Get full product details for recommendations
       const recommendedProducts = [];
@@ -1485,7 +1485,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/ai/recommendations', async (req, res) => {
     try {
       const { searchTerm, category } = req.query;
-      const products = await storage.getProductsWithFarmer();
+      const products = await storage.getProductsByFarmer();
       
       // Mock user preferences - in real app, get from user session/profile
       const userPreferences = {
@@ -1556,7 +1556,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     currentMonth >= 5 && currentMonth <= 7 ? 'summer' :
                     currentMonth >= 8 && currentMonth <= 10 ? 'fall' : 'winter';
       
-      const trending = await aiService.generateTrendingProducts(productData, season);
+      const trending = productData.slice(0, 8); // Mock trending for now
       
       // Get full product details for trending items
       const trendingProducts = [];
