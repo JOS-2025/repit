@@ -671,7 +671,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               farmer: {
                 farmName: farmer.farmName,
                 location: farmer.location,
-                averageRating: farmer.averageRating?.toString() || '4.5'
+                averageRating: farmer.averageRating?.toString() || '0'
               },
               trendingScore: Math.random() * 100, // Mock trending score
               viewCount: Math.floor(Math.random() * 1000),
@@ -1799,7 +1799,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               farmer: {
                 farmName: farmer.farmName,
                 location: farmer.location,
-                averageRating: farmer.averageRating?.toString() || '4.5'
+                averageRating: farmer.averageRating?.toString() || '0'
               }
             });
           }
