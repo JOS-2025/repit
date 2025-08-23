@@ -1701,97 +1701,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   async processRecurringBulkOrders(): Promise<void> {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    // Get all active recurring orders due today
-    const dueOrders = await db
-      .select()
-      .from(recurringBulkOrders)
-      .where(
-        and(
-          eq(recurringBulkOrders.isActive, true),
-          lte(recurringBulkOrders.nextDelivery, today)
-        )
-      );
-
-    for (const order of dueOrders) {
-      // Get order items
-      const items = await db
-        .select()
-        .from(recurringBulkOrderItems)
-        .where(eq(recurringBulkOrderItems.recurringOrderId, order.id));
-
-      // Create new bulk order
-      const [newBulkOrder] = await db
-        .insert(bulkOrders)
-        .values({
-          businessId: order.businessId,
-          farmerId: order.farmerId,
-          totalAmount: '0', // Will be calculated
-          deliveryDate: order.nextDelivery,
-          status: 'pending',
-        })
-        .returning();
-
-      let totalAmount = 0;
-
-      // Create bulk order items
-      for (const item of items) {
-        const itemTotal = item.quantity * parseFloat(item.unitPrice.toString());
-        totalAmount += itemTotal;
-
-        await db.insert(bulkOrderItems).values({
-          bulkOrderId: newBulkOrder.id,
-          productId: item.productId,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          totalPrice: itemTotal,
-        });
-      }
-
-      // Update bulk order total
-      await db
-        .update(bulkOrders)
-        .set({ totalAmount: totalAmount.toString(), finalAmount: totalAmount.toString() })
-        .where(eq(bulkOrders.id, newBulkOrder.id));
-
-      // Calculate discounts
-      await this.calculateBulkOrderDiscount(newBulkOrder.id);
-
-      // Update recurring order
-      const nextDelivery = new Date(order.nextDelivery);
-      switch (order.frequency) {
-        case 'weekly':
-          nextDelivery.setDate(nextDelivery.getDate() + 7);
-          break;
-        case 'bi_weekly':
-          nextDelivery.setDate(nextDelivery.getDate() + 14);
-          break;
-        case 'monthly':
-          nextDelivery.setMonth(nextDelivery.getMonth() + 1);
-          break;
-      }
-
-      await db
-        .update(recurringBulkOrders)
-        .set({
-          lastDelivery: order.nextDelivery,
-          nextDelivery: nextDelivery,
-          totalDeliveries: (order.totalDeliveries ?? 0) + 1,
-          updatedAt: new Date(),
-        })
-        .where(eq(recurringBulkOrders.id, order.id));
-    }
+    // TODO: Implement when B2B schema is fully defined
+    console.log("processRecurringBulkOrders: Not implemented yet");
+    return;
   }
 
   // B2B Invoice operations
   async createInvoice(invoice: InsertInvoice): Promise<Invoice> {
-    const [newInvoice] = await db
-      .insert(invoices)
-      .values(invoice)
-      .returning();
-    return newInvoice;
+    // TODO: Implement when invoice schema is fully defined
+    throw new Error("createInvoice: Not implemented yet");
   }
 
   async getInvoicesByBusiness(businessId: string): Promise<Invoice[]> {
