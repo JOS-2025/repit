@@ -39,7 +39,7 @@ import {
   volumeDiscounts,
   productPricing,
   type User,
-  type UpsertUser,
+  type InsertUser,
   type InsertFarmer,
   type Farmer,
   type InsertProduct,
@@ -83,9 +83,10 @@ import { db } from "./db";
 import { eq, and, desc, asc, lte, gte, sql } from "drizzle-orm";
 
 export interface IStorage {
-  // User operations (required for Replit Auth)
+  // User operations for simple auth
   getUser(id: string): Promise<User | undefined>;
-  upsertUser(user: UpsertUser): Promise<User>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  createUser(userData: InsertUser): Promise<User>;
   
   // Farmer operations
   createFarmer(farmer: InsertFarmer): Promise<Farmer>;
@@ -269,17 +270,15 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async upsertUser(userData: UpsertUser): Promise<User> {
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
+  }
+
+  async createUser(userData: InsertUser): Promise<User> {
     const [user] = await db
       .insert(users)
       .values(userData)
-      .onConflictDoUpdate({
-        target: users.id,
-        set: {
-          ...userData,
-          updatedAt: new Date(),
-        },
-      })
       .returning();
     return user;
   }

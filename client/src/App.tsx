@@ -19,6 +19,7 @@ import TermsConditions from "@/pages/terms-conditions";
 import PrivacyPolicy from "@/pages/privacy-policy";
 import PrivacySettings from "@/pages/privacy-settings";
 import WhatsAppSettings from "@/pages/whatsapp-settings";
+import { LoginForm } from "@/components/LoginForm";
 import Checkout from "@/pages/checkout";
 import FarmerAnalytics from "@/pages/farmer-analytics";
 import Wishlist from "@/pages/wishlist";
@@ -41,7 +42,7 @@ function Router() {
     <Switch>
       {isLoading || !isAuthenticated ? (
         <>
-          <Route path="/" component={Landing} />
+          <Route path="/" component={LoginForm} />
           <Route path="/products" component={Products} />
           <Route path="/categories" component={Categories} />
           <Route path="/recommendations" component={Recommendations} />

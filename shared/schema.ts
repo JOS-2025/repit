@@ -30,7 +30,8 @@ export const sessions = pgTable(
 // User storage table for auth
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  email: varchar("email").unique(),
+  email: varchar("email").unique().notNull(),
+  password: varchar("password").notNull(),
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
@@ -670,7 +671,7 @@ export const messageNotifications = pgTable("message_notifications", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export type UpsertUser = typeof users.$inferInsert;
+export type InsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect & {
   farmer?: typeof farmers.$inferSelect | null;
   business?: typeof businesses.$inferSelect | null;

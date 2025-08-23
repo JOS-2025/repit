@@ -1,7 +1,7 @@
 import express, { type Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+// Removed old Replit Auth import
 import { escrowService } from "./escrowService";
 import { setupGPSTracking, updateDriverLocation, updateDeliveryStatus, calculateETA } from "./gpsTracking";
 import { aiService } from "./ai";
@@ -34,6 +34,7 @@ import { body } from "express-validator";
 import { autoAuditMiddleware, getSecurityDashboard } from "./securityAudit";
 import { registerWhatsAppRoutes } from "./routes/whatsapp";
 import { whatsappBot } from "./whatsappBot";
+import { setupAuth, isAuthenticated } from "./auth";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
