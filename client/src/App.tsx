@@ -46,7 +46,7 @@ function Router() {
     <Switch>
       {isLoading || !isAuthenticated ? (
         <>
-          <Route path="/" component={Marketplace} />
+          <Route path="/" component={Home} />
           <Route path="/login" component={LoginForm} />
           <Route path="/marketplace" component={Marketplace} />
           <Route path="/guest-checkout" component={GuestCheckout} />
