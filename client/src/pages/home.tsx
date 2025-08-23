@@ -8,6 +8,7 @@ import { isUnauthorizedError } from "@/lib/authUtils";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAddToCart } from '@/components/shopping-cart';
+import { sanitizeText, validateLength } from '@/utils/security';
 
 export default function Home() {
   const { toast } = useToast();

@@ -1,134 +1,149 @@
-// Service Worker for FramCart PWA
-
-const CACHE_NAME = 'framcart-v1.2';
-const urlsToCache = [
-  '/',
-  '/static/js/bundle.js', 
-  '/static/css/main.css',
+/* FramCart PWA Service Worker - Hardened v2 */
+const VERSION = 'framcart-v2';
+const APP_SHELL = [
+  '/', 
+  '/index.html', 
   '/manifest.json',
-  '/src/App.jsx',
-  '/src/main.jsx',
-  '/src/index.css'
+  '/icons/icon-192x192.png', 
+  '/icons/icon-512x512.png'
 ];
 
-// Install event - cache essential files
-self.addEventListener('install', (event) => {
-  console.log('[Service Worker] Installing...');
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => {
-        console.log('[Service Worker] Caching essential files');
-        return cache.addAll(urlsToCache)
-          .then(() => {
-            console.log('[Service Worker] Essential files cached');
-          })
-          .catch((error) => {
-            console.error('[Service Worker] Failed to cache essential files:', error);
-          });
-      })
+self.addEventListener('install', (e) => {
+  console.log('[Service Worker] Installing hardened v2...');
+  e.waitUntil(
+    caches.open(VERSION).then((c) => c.addAll(APP_SHELL))
   );
 });
 
-// Activate event - cleanup old caches
-self.addEventListener('activate', (event) => {
-  console.log('[Service Worker] Activating...');
-  event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
-            console.log('[Service Worker] Deleting old cache:', cacheName);
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    }).then(() => {
-      console.log('[Service Worker] Activated');
-      return self.clients.claim();
+self.addEventListener('activate', (e) => {
+  console.log('[Service Worker] Activating hardened v2...');
+  e.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(keys.map(k => (k !== VERSION ? caches.delete(k) : null)))
+    )
+  );
+});
+
+// Never cache auth or sensitive API requests; network-only for security
+const isSensitive = (url) =>
+  url.pathname.startsWith('/auth') ||
+  url.pathname.startsWith('/api/auth') ||
+  url.pathname.startsWith('/api/secure') ||
+  url.pathname.startsWith('/api/admin') ||
+  url.pathname.startsWith('/api/orders') ||
+  url.pathname.startsWith('/api/payments') ||
+  url.hostname.includes('replit.com');
+
+self.addEventListener('fetch', (e) => {
+  const url = new URL(e.request.url);
+
+  // Bypass cache for non-GET requests or sensitive endpoints
+  if (e.request.method !== 'GET' || isSensitive(url)) {
+    e.respondWith(fetch(e.request)); // always network-only
+    return;
+  }
+
+  // Cache-first for app shell; network with cache-fallback for others
+  e.respondWith(
+    caches.match(e.request).then(cached => {
+      if (cached) return cached;
+      return fetch(e.request).then((resp) => {
+        // Only cache successful, same-origin GETs
+        if (resp.ok && url.origin === location.origin) {
+          const clone = resp.clone();
+          caches.open(VERSION).then(c => c.put(e.request, clone));
+        }
+        return resp;
+      }).catch(() => caches.match('/index.html'));
     })
   );
 });
 
-// Fetch event - serve from cache with network fallback
-self.addEventListener('fetch', (event) => {
-  // Skip non-GET requests
-  if (event.request.method !== 'GET') {
-    return;
+// Enhanced push notifications with security validation
+self.addEventListener('push', (event) => {
+  let data = {};
+  
+  if (event.data) {
+    try {
+      data = event.data.json();
+      // Basic validation to prevent malicious payloads
+      if (typeof data.title !== 'string') data.title = 'FramCart';
+      if (typeof data.body !== 'string') data.body = 'New update';
+      // Sanitize strings
+      data.title = data.title.substring(0, 100);
+      data.body = data.body.substring(0, 300);
+    } catch (error) {
+      console.warn('[Service Worker] Invalid push data:', error);
+      data = { title: 'FramCart', body: 'New update' };
+    }
   }
+  
+  const title = data.title || 'FramCart';
+  const options = {
+    body: data.body || 'New update from your farm marketplace',
+    icon: '/icons/icon-192x192.png',
+    badge: '/icons/icon-192x192.png',
+    tag: 'framcart-notification',
+    requireInteraction: false,
+    actions: [
+      { action: 'view', title: 'View' },
+      { action: 'dismiss', title: 'Dismiss' }
+    ]
+  };
+  
+  event.waitUntil(self.registration.showNotification(title, options));
+});
 
-  event.respondWith(
-    caches.match(event.request)
-      .then((cachedResponse) => {
-        if (cachedResponse) {
-          return cachedResponse;
+// Enhanced notification click handling
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  
+  const action = event.action;
+  let targetUrl = '/';
+  
+  if (action === 'view') {
+    targetUrl = '/orders';
+  } else if (action === 'dismiss') {
+    return; // Just close
+  }
+  
+  event.waitUntil(
+    clients.matchAll({ type: 'window' }).then(clientList => {
+      // Focus existing window if available
+      for (const client of clientList) {
+        if (client.url.includes(targetUrl) && 'focus' in client) {
+          return client.focus();
         }
-
-        return fetch(event.request)
-          .then((response) => {
-            // Don't cache non-successful responses
-            if (!response || response.status !== 200 || response.type !== 'basic') {
-              return response;
-            }
-
-            // Clone the response for caching
-            const responseToCache = response.clone();
-            caches.open(CACHE_NAME)
-              .then((cache) => {
-                cache.put(event.request, responseToCache);
-              });
-
-            return response;
-          })
-          .catch(() => {
-            // Return offline page or error response
-            if (event.request.destination === 'document') {
-              console.log('[Service Worker] Network failed for:', event.request.url);
-              return new Response(
-                JSON.stringify({
-                  error: 'Offline', 
-                  message: 'Please check your internet connection'
-                }),
-                {
-                  status: 503,
-                  statusText: 'Service Unavailable',
-                  headers: { 'Content-Type': 'application/json' }
-                }
-              );
-            }
-            return new Response(
-              JSON.stringify({
-                error: 'Offline', 
-                message: 'Resource not available offline'
-              }),
-              {
-                status: 503,
-                statusText: 'Service Unavailable', 
-                headers: { 'Content-Type': 'application/json' }
-              }
-            );
-          });
-      })
+      }
+      // Open new window
+      if (clients.openWindow) {
+        return clients.openWindow(targetUrl);
+      }
+    })
   );
 });
 
-// Background sync for offline orders
+// Background sync for offline functionality  
 self.addEventListener('sync', (event) => {
-  console.log('[Service Worker] Background sync:', event.tag);
-  if (event.tag === 'background-sync-orders') {
-    event.waitUntil(syncOrders());
+  if (event.tag === 'sync-orders') {
+    event.waitUntil(syncOfflineOrders());
   }
 });
 
-// Sync offline orders when connection is restored
-async function syncOrders() {
-  console.log('[Service Worker] Syncing orders...');
+// Secure offline order sync
+async function syncOfflineOrders() {
   try {
-    // Get offline orders from IndexedDB or localStorage
     const offlineOrders = JSON.parse(localStorage.getItem('offlineOrders') || '[]');
     
     for (const order of offlineOrders) {
       try {
-        const response = await fetch('/api/orders/simple', {
+        // Validate order data before sending
+        if (!order.id || !order.items || !Array.isArray(order.items)) {
+          console.warn('[Service Worker] Invalid offline order data:', order);
+          continue;
+        }
+        
+        const response = await fetch('/api/orders', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -137,8 +152,7 @@ async function syncOrders() {
         });
         
         if (response.ok) {
-          console.log('[Service Worker] Order synced successfully:', order.id);
-          // Remove from offline storage
+          // Remove successfully synced order
           const updatedOrders = offlineOrders.filter(o => o.id !== order.id);
           localStorage.setItem('offlineOrders', JSON.stringify(updatedOrders));
         }
@@ -151,70 +165,9 @@ async function syncOrders() {
   }
 }
 
-// Push notification event with enhanced data handling
-self.addEventListener('push', (event) => {
-  let notificationData = {
-    title: 'FramCart',
-    body: 'New update from FramCart!',
-    icon: '/icons/icon-192x192.png',
-    badge: '/icons/icon-192x192.png',
-    tag: 'framcart-notification',
-    requireInteraction: false,
-    actions: [
-      {
-        action: 'view',
-        title: 'View Orders'
-      },
-      {
-        action: 'dismiss', 
-        title: 'Dismiss'
-      }
-    ]
-  };
-
-  if (event.data) {
-    try {
-      const data = event.data.json();
-      notificationData = { ...notificationData, ...data };
-    } catch (error) {
-      console.error('[Service Worker] Failed to parse push data:', error);
-      notificationData.body = event.data.text();
-    }
-  }
-
-  event.waitUntil(
-    self.registration.showNotification(notificationData.title, notificationData)
-  );
-});
-
-// Enhanced notification click event
-self.addEventListener('notificationclick', (event) => {
-  event.notification.close();
-  
-  const action = event.action;
-  const notification = event.notification;
-  
-  if (action === 'view') {
-    event.waitUntil(
-      clients.openWindow('/orders')
-    );
-  } else if (action === 'dismiss') {
-    // Just close the notification
-    return;
-  } else {
-    // Default action - open main page
-    event.waitUntil(
-      clients.openWindow('/')
-    );
-  }
-});
-
-// Handle messages from main thread
+// Message handling from main thread
 self.addEventListener('message', (event) => {
-  console.log('[Service Worker] Received message:', event.data);
-  
   if (event.data && event.data.type === 'SKIP_WAITING') {
-    console.log('[Service Worker] Skipping waiting...');
     self.skipWaiting();
   }
 });

@@ -46,3 +46,44 @@ Product images are handled through multer middleware with local disk storage. Im
 ## File Storage
 - **Multer**: Express middleware for handling multipart/form-data and file uploads
 - **Local File System**: Direct disk storage for product images
+
+# Security Architecture
+
+## Enhanced Enterprise Security Implementation
+FramCart implements comprehensive enterprise-grade security measures to protect user data, prevent attacks, and ensure secure transactions.
+
+## Security Headers & Content Security Policy
+- **Strict CSP**: Hardened Content Security Policy with minimal permissions, no inline scripts/styles allowed
+- **Security Headers**: X-Content-Type-Options (nosniff), X-Frame-Options (DENY), Referrer-Policy (strict-origin-when-cross-origin)
+- **Permissions Policy**: Disabled geolocation, camera, microphone, and other sensitive browser APIs
+- **HTTPS Enforcement**: Upgrade-insecure-requests directive for secure connections
+
+## Service Worker Security
+- **Hardened Service Worker**: Version 2 implementation with enhanced security measures
+- **Sensitive Endpoint Protection**: Never caches auth, payment, or admin endpoints (network-only)
+- **Cache Security**: Only caches successful same-origin GET requests
+- **Push Notification Validation**: Input sanitization and length limits on push data
+
+## Input Validation & Sanitization
+- **Client-Side Security Utilities**: Comprehensive input sanitization preventing XSS attacks
+- **Form Security**: SecureForm component with automatic validation and rate limiting
+- **File Upload Protection**: Type validation, size limits, and malicious filename detection
+- **Data Length Validation**: Configurable limits on all user inputs
+
+## Authentication & Authorization
+- **Protected Routes**: ProtectedRoute component with role-based access control
+- **Session Security**: PostgreSQL-backed sessions with automatic cleanup
+- **Rate Limiting**: Client and server-side rate limiting to prevent brute force attacks
+- **Role-Based Access**: Farmer, admin, and customer role restrictions
+
+## API Security
+- **Request Validation**: express-validator for comprehensive input validation
+- **CSRF Protection**: SameSite cookies and token validation
+- **Security Monitoring**: Comprehensive logging and security alert system
+- **Error Handling**: Secure error responses that don't leak sensitive information
+
+## Security Best Practices
+- **Dependency Management**: Regular security audits with npm audit
+- **CSP Compliance Validation**: Automatic checking for CSP policy violations
+- **Secure Storage**: Client-side data encryption with secure storage utilities
+- **Build-Time Security**: Security checks integrated into build process

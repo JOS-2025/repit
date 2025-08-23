@@ -1,0 +1,385 @@
+1) HTML security headers (CSP + others)
+
+Add to index.html <head> (tweak your Supabase URL + any CDNs you use):
+
+<!-- Strict CSP: allow only your origin + Supabase -->
+<meta http-equiv="Content-Security-Policy"
+  content="
+    default-src 'self';
+    script-src 'self';
+    style-src 'self' 'unsafe-inline';
+    img-src 'self' data: https:;
+    font-src 'self' https:;
+    connect-src 'self' https://YOUR-PROJECT.supabase.co;
+    manifest-src 'self';
+    worker-src 'self';
+    frame-ancestors 'none';
+    base-uri 'self';
+    form-action 'self';
+  ">
+
+<!-- Other defensive headers (meta fallbacks for static hosting) -->
+<meta http-equiv="X-Content-Type-Options" content="nosniff">
+<meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+<meta http-equiv="X-Frame-Options" content="DENY">
+<meta http-equiv="Permissions-Policy" content="geolocation=(), camera=(), microphone=()">
+
+<!-- PWA bits -->
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#16a34a">
+
+
+If you later load third-party scripts (e.g., maps, analytics), you must explicitly add them to script-src, img-src, connect-src, etc.
+
+2) Hardened Service Worker
+
+Replace your public/service-worker.js (or src/service-worker.js) with:
+
+/* v2 – hardened */
+const VERSION = 'fc-v2';
+const APP_SHELL = [
+  '/', '/index.html', '/manifest.json',
+  '/icons/icon-192x192.png', '/icons/icon-512x512.png'
+];
+
+self.addEventListener('install', (e) => {
+  e.waitUntil(
+    caches.open(VERSION).then((c) => c.addAll(APP_SHELL))
+  );
+});
+
+self.addEventListener('activate', (e) => {
+  e.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(keys.map(k => (k !== VERSION ? caches.delete(k) : null)))
+    )
+  );
+});
+
+// Never cache auth or DB requests; network-only for Supabase
+const isSensitive = (url) =>
+  url.hostname.endsWith('supabase.co') ||
+  url.pathname.startsWith('/auth') ||
+  url.pathname.startsWith('/api/secure');
+
+self.addEventListener('fetch', (e) => {
+  const url = new URL(e.request.url);
+
+  if (e.request.method !== 'GET' || isSensitive(url)) {
+    e.respondWith(fetch(e.request)); // bypass cache
+    return;
+  }
+
+  // Cache-first for app shell; network with cache-fallback for others
+  e.respondWith(
+    caches.match(e.request).then(cached => {
+      if (cached) return cached;
+      return fetch(e.request).then((resp) => {
+        // only cache successful, same-origin GETs
+        if (resp.ok && url.origin === location.origin) {
+          const clone = resp.clone();
+          caches.open(VERSION).then(c => c.put(e.request, clone));
+        }
+        return resp;
+      }).catch(() => caches.match('/index.html'));
+    })
+  );
+});
+
+// Optional push
+self.addEventListener('push', (event) => {
+  const data = event.data ? event.data.json() : {};
+  const title = data.title || 'FarmCart';
+  const options = {
+    body: data.body || 'New update',
+    icon: '/icons/icon-192x192.png',
+    badge: '/icons/icon-192x192.png',
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+// Optional background sync
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'sync-orders') {
+    event.waitUntil((async () => true)());
+  }
+});
+
+
+Register it once in your app (e.g., main.jsx):
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/service-worker.js').catch(console.error);
+  });
+}
+
+3) Frontend input validation + auth guards
+
+src/utils/security.js:
+
+// Simple client-side sanitization / validation helpers
+export const sanitizeText = (s) =>
+  String(s ?? '').replace(/[<>"]/g, '');
+
+export const isEmail = (e) =>
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(e).toLowerCase());
+
+// Route guard example
+export const requireAuth = async (supabase) => {
+  const { data } = await supabase.auth.getUser();
+  return !!data?.user;
+};
+
+// Require role=business for B2B areas (stored in user metadata)
+export const requireBusiness = async (supabase) => {
+  const { data } = await supabase.auth.getUser();
+  return data?.user?.user_metadata?.role === 'business';
+};
+
+
+Use guards in routes (example):
+
+// In your router
+<Route
+  path="/b2b"
+  element={
+    <Protected supabase={supabase} role="business">
+      <B2BDashboard/>
+    </Protected>
+  }
+/>
+
+// Protected wrapper
+const Protected = ({ supabase, role, children }) => {
+  const [ok, setOk] = React.useState(null);
+
+  React.useEffect(() => {
+    (async () => {
+      const authed = await requireAuth(supabase);
+      if (!authed) return setOk(false);
+      if (role === 'business') {
+        const allowed = await requireBusiness(supabase);
+        return setOk(!!allowed);
+      }
+      setOk(true);
+    })();
+  }, []);
+
+  if (ok === null) return <div>Loading…</div>;
+  if (!ok) return <div>Access denied</div>;
+  return children;
+};
+
+4) Supabase: enable RLS + policies (SQL)
+
+Run in Supabase SQL editor (adjust table/column names to your schema):
+
+-- Turn on RLS
+alter table profiles enable row level security;
+alter table products enable row level security;
+alter table orders enable row level security;
+alter table bulk_orders enable row level security;
+alter table invoices enable row level security;
+
+-- PROFILES: users read own profile; admin can read all (if you use a role claim)
+create policy "profiles_select_self" on profiles
+for select
+to authenticated
+using (auth.uid() = id);
+
+create policy "profiles_update_self" on profiles
+for update
+to authenticated
+using (auth.uid() = id)
+with check (auth.uid() = id);
+
+-- PRODUCTS: public read; only owner (farmer_id) can insert/update their products
+create policy "products_public_read" on products
+for select using (true);
+
+create policy "products_insert_owner" on products
+for insert to authenticated
+with check (auth.uid() = farmer_id);
+
+create policy "products_update_owner" on products
+for update to authenticated
+using (auth.uid() = farmer_id)
+with check (auth.uid() = farmer_id);
+
+-- ORDERS: customers can select/insert their orders
+create policy "orders_select_owner" on orders
+for select to authenticated
+using (auth.uid() = customer_id);
+
+create policy "orders_insert_owner" on orders
+for insert to authenticated
+with check (auth.uid() = customer_id);
+
+-- BULK ORDERS: business only (assumes business_id == auth.uid())
+create policy "bulk_orders_biz" on bulk_orders
+for all to authenticated
+using (auth.uid() = business_id)
+with check (auth.uid() = business_id);
+
+-- INVOICES: visible to order owner or business
+create policy "invoices_select_owner" on invoices
+for select to authenticated
+using (auth.uid() = customer_id OR auth.uid() = business_id);
+
+-- OPTIONAL: admin bypass if you add a JWT claim "role"='admin'
+-- create role admin;
+-- Then configure JWT to include role claim; create broad admin policies as needed.
+
+
+Important:
+
+Never use the service role key on the client.
+
+Keep anon key in client; service key only in server/Edge Functions.
+
+5) Supabase Edge Function (rate limit + JWT verify)
+
+If you call custom APIs (e.g., order placement), do it from an Edge Function with simple rate limiting and strict auth.
+
+Create supabase/functions/place-order/index.ts:
+
+// deno deploy target (Supabase Edge Function)
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+
+const WINDOW_MS = 60_000;   // 1 minute
+const MAX_REQ = 20;         // 20 req / minute per IP
+const bucket = new Map<string, { count: number; reset: number }>();
+
+Deno.serve(async (req) => {
+  // CORS
+  if (req.method === 'OPTIONS') {
+    return new Response(null, {
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers": "authorization, content-type",
+      }
+    });
+  }
+
+  // Rate limit (in-memory; good for MVP; upgrade to Redis for production)
+  const ip = req.headers.get('x-forwarded-for') ?? 'unknown';
+  const now = Date.now();
+  const entry = bucket.get(ip) ?? { count: 0, reset: now + WINDOW_MS };
+  if (now > entry.reset) { entry.count = 0; entry.reset = now + WINDOW_MS; }
+  entry.count++;
+  bucket.set(ip, entry);
+  if (entry.count > MAX_REQ) {
+    return new Response(JSON.stringify({ error: "Too many requests" }), {
+      status: 429,
+      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
+    });
+  }
+
+  // Verify Supabase JWT
+  const auth = req.headers.get('authorization') || '';
+  if (!auth.startsWith('Bearer ')) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
+    });
+  }
+
+  // Minimal payload validation
+  try {
+    const body = await req.json();
+    const { items, address } = body ?? {};
+    if (!Array.isArray(items) || !address) {
+      return new Response(JSON.stringify({ error: "Invalid payload" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
+      });
+    }
+    // TODO: insert into DB using service role (via env var) with server-side checks
+    return new Response(JSON.stringify({ ok: true }), {
+      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
+    });
+  } catch {
+    return new Response(JSON.stringify({ error: "Bad Request" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
+    });
+  }
+});
+
+
+Deploy:
+
+supabase functions deploy place-order
+
+
+Call it from the client with the user’s JWT:
+
+const { data: { session } } = await supabase.auth.getSession();
+await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/place-order`, {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${session?.access_token ?? ''}`
+  },
+  body: JSON.stringify({ items, address })
+});
+
+6) Dependency hygiene & build-time checks
+
+package.json scripts:
+
+{
+  "scripts": {
+    "audit": "npm audit",
+    "lint": "eslint --max-warnings=0 .",
+    "build": "vite build",
+    "predeploy": "npm run audit && npm run build"
+  }
+}
+
+
+Run periodically:
+
+npm audit fix
+
+7) Secrets & environment
+
+Never commit .env (add to .gitignore).
+
+In the client .env only keep:
+
+VITE_SUPABASE_URL=...
+VITE_SUPABASE_ANON_KEY=...
+
+
+Keep service role key only in Edge Functions environment (Supabase dashboard → Functions → Secrets).
+
+8) Payments & webhooks (outline)
+
+When you add payments (e.g., M-Pesa/Stripe):
+
+Receive webhooks in a Supabase Edge Function.
+
+Verify signatures using the provider’s signing secret.
+
+Mark orders paid only after verified webhook.
+
+Never trust client “payment success” alone.
+
+9) Post-deploy verification checklist
+
+Lighthouse → PWA + Best Practices + Security ≥ 90.
+
+Chrome DevTools → Application → Service Workers = Activated.
+
+Try offline; sensitive requests still go network-only.
+
+Supabase RLS: try to read/modify someone else’s records → should be denied.
+
+Run npm audit → fix.
+
+Edge Function → returns 401 without JWT, 429 under flood.
+
+If you want, I can also provide a one-shot bash script to apply the CSP/meta, drop in the hardened service worker, and create the Edge Function scaffold automatically for your repo.
