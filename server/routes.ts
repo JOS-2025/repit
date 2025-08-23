@@ -2151,7 +2151,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // certifications: ['Organic', 'Fair Trade'], // Remove non-schema field
         // specialties: ['vegetables', 'fruits'], // Remove non-schema field
         isVerified: true,
-        averageRating: 4.8
+        // averageRating: 4.8 // This will be calculated from ratings
       });
 
       const farmer2 = await storage.createFarmer({
@@ -2162,7 +2162,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // certifications: ['Organic'], // Remove non-schema field
         // specialties: ['dairy', 'grains'], // Remove non-schema field
         isVerified: true,
-        averageRating: 4.6
+        // averageRating: 4.6 // This will be calculated from ratings
       });
 
       // Create sample products
