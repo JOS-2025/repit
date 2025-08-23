@@ -1416,6 +1416,64 @@ export const productPricingRelations = relations(productPricing, ({ one }) => ({
     references: [products.id],
   }),
 }));
+// ============= PRODUCT NOTIFICATIONS =============
+
+// Product notification subscriptions
+export const productSubscriptions = pgTable("product_subscriptions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  subscriptionType: varchar("subscription_type").notNull(), // 'category', 'farmer', 'all'
+  targetId: varchar("target_id"), // farmer ID for farmer subscriptions, null for 'all'
+  category: varchar("category"), // category name for category subscriptions
+  isActive: boolean("is_active").default(true),
+  notificationMethods: jsonb("notification_methods").default('["push"]'), // ['push', 'whatsapp', 'email']
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Product notifications log
+export const productNotifications = pgTable("product_notifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  productId: varchar("product_id").notNull().references(() => products.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  subscriptionId: varchar("subscription_id").notNull().references(() => productSubscriptions.id),
+  notificationMethod: varchar("notification_method").notNull(), // 'push', 'whatsapp', 'email'
+  status: varchar("status").default("pending"), // pending, sent, failed
+  sentAt: timestamp("sent_at"),
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Product subscription relations
+export const productSubscriptionsRelations = relations(productSubscriptions, ({ one, many }) => ({
+  user: one(users, {
+    fields: [productSubscriptions.userId],
+    references: [users.id],
+  }),
+  farmer: one(farmers, {
+    fields: [productSubscriptions.targetId],
+    references: [farmers.id],
+  }),
+  notifications: many(productNotifications),
+}));
+
+export const productNotificationsRelations = relations(productNotifications, ({ one }) => ({
+  product: one(products, {
+    fields: [productNotifications.productId],
+    references: [products.id],
+  }),
+  user: one(users, {
+    fields: [productNotifications.userId],
+    references: [users.id],
+  }),
+  subscription: one(productSubscriptions, {
+    fields: [productNotifications.subscriptionId],
+    references: [productSubscriptions.id],
+  }),
+}));
+
+// ============= TYPE EXPORTS =============
+
 export type ForumCategory = typeof forumCategories.$inferSelect;
 export type InsertForumCategory = typeof forumCategories.$inferInsert;
 export type ForumTopic = typeof forumTopics.$inferSelect;
@@ -1428,3 +1486,7 @@ export type FarmerTrainingModule = typeof farmerTrainingModules.$inferSelect;
 export type InsertFarmerTrainingModule = typeof farmerTrainingModules.$inferInsert;
 export type FarmerTrainingCompletion = typeof farmerTrainingCompletions.$inferSelect;
 export type InsertFarmerTrainingCompletion = typeof farmerTrainingCompletions.$inferInsert;
+export type ProductSubscription = typeof productSubscriptions.$inferSelect;
+export type InsertProductSubscription = typeof productSubscriptions.$inferInsert;
+export type ProductNotification = typeof productNotifications.$inferSelect;
+export type InsertProductNotification = typeof productNotifications.$inferInsert;

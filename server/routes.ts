@@ -36,6 +36,7 @@ import { autoAuditMiddleware, getSecurityDashboard } from "./securityAudit";
 import { registerWhatsAppRoutes } from "./routes/whatsapp";
 import { whatsappBot } from "./whatsappBot";
 import { setupAuth, isAuthenticated } from "./auth";
+import { productNotificationService } from "./productNotificationService";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -762,6 +763,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
 
         const product = await storage.createProduct(productData);
+        
+        // Trigger product notifications asynchronously
+        try {
+          await productNotificationService.notifyNewProduct(product);
+        } catch (notificationError) {
+          console.error("Error sending product notifications:", notificationError);
+          // Don't fail the product creation if notifications fail
+        }
+        
         res.json(product);
       } catch (error) {
         console.error("Error creating product:", error);
@@ -827,6 +837,135 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting product:", error);
       res.status(500).json({ message: "Failed to delete product" });
+    }
+  });
+
+  // ============= PRODUCT NOTIFICATION SUBSCRIPTION ENDPOINTS =============
+
+  // Get user's product subscriptions
+  app.get('/api/product-subscriptions', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const subscriptions = await storage.getUserProductSubscriptions(userId);
+      res.json(subscriptions);
+    } catch (error) {
+      console.error("Error fetching product subscriptions:", error);
+      res.status(500).json({ message: "Failed to fetch subscriptions" });
+    }
+  });
+
+  // Create product subscription
+  app.post('/api/product-subscriptions', 
+    isAuthenticated,
+    [
+      body('subscriptionType').isIn(['category', 'farmer', 'all']).withMessage('Invalid subscription type'),
+      body('targetId').optional().isString().withMessage('Target ID must be a string'),
+      body('category').optional().isString().withMessage('Category must be a string'),
+      body('notificationMethods').isArray().withMessage('Notification methods must be an array'),
+    ],
+    handleValidationErrors,
+    async (req: any, res) => {
+      try {
+        const userId = req.user.claims.sub;
+        const { subscriptionType, targetId, category, notificationMethods } = req.body;
+
+        // Validate subscription data
+        if (subscriptionType === 'farmer' && !targetId) {
+          return res.status(400).json({ message: "Target farmer ID is required for farmer subscriptions" });
+        }
+        
+        if (subscriptionType === 'category' && !category) {
+          return res.status(400).json({ message: "Category is required for category subscriptions" });
+        }
+
+        // Check if user already has this subscription
+        const existingSubscriptions = await storage.getUserProductSubscriptions(userId);
+        const duplicate = existingSubscriptions.find(sub => 
+          sub.subscriptionType === subscriptionType && 
+          sub.targetId === targetId && 
+          sub.category === category &&
+          sub.isActive
+        );
+
+        if (duplicate) {
+          return res.status(400).json({ message: "You already have this subscription" });
+        }
+
+        const subscription = await storage.createProductSubscription({
+          userId,
+          subscriptionType,
+          targetId: targetId || null,
+          category: category || null,
+          notificationMethods,
+          isActive: true,
+        });
+
+        res.json(subscription);
+      } catch (error) {
+        console.error("Error creating product subscription:", error);
+        res.status(500).json({ message: "Failed to create subscription" });
+      }
+    }
+  );
+
+  // Update product subscription
+  app.put('/api/product-subscriptions/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const subscriptionId = req.params.id;
+      const { isActive, notificationMethods } = req.body;
+
+      // Check if subscription belongs to user
+      const userSubscriptions = await storage.getUserProductSubscriptions(userId);
+      const subscription = userSubscriptions.find(sub => sub.id === subscriptionId);
+      
+      if (!subscription) {
+        return res.status(404).json({ message: "Subscription not found or unauthorized" });
+      }
+
+      const updatedSubscription = await storage.updateProductSubscription(subscriptionId, {
+        isActive,
+        notificationMethods,
+      });
+
+      res.json(updatedSubscription);
+    } catch (error) {
+      console.error("Error updating product subscription:", error);
+      res.status(500).json({ message: "Failed to update subscription" });
+    }
+  });
+
+  // Delete product subscription
+  app.delete('/api/product-subscriptions/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const subscriptionId = req.params.id;
+
+      // Check if subscription belongs to user
+      const userSubscriptions = await storage.getUserProductSubscriptions(userId);
+      const subscription = userSubscriptions.find(sub => sub.id === subscriptionId);
+      
+      if (!subscription) {
+        return res.status(404).json({ message: "Subscription not found or unauthorized" });
+      }
+
+      await storage.deleteProductSubscription(subscriptionId);
+      res.json({ message: "Subscription deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting product subscription:", error);
+      res.status(500).json({ message: "Failed to delete subscription" });
+    }
+  });
+
+  // Get notification statistics (for admin/farmer dashboard)
+  app.get('/api/product-notifications/stats', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const stats = await productNotificationService.getNotificationStats(userId);
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching notification stats:", error);
+      res.status(500).json({ message: "Failed to fetch notification statistics" });
     }
   });
 

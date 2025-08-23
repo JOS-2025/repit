@@ -78,6 +78,12 @@ import {
   type VolumeDiscount,
   type InsertProductPricing,
   type ProductPricing,
+  productSubscriptions,
+  productNotifications,
+  type ProductSubscription,
+  type InsertProductSubscription,
+  type ProductNotification,
+  type InsertProductNotification,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc, lte, gte, sql } from "drizzle-orm";
@@ -261,6 +267,15 @@ export interface IStorage {
   getBusinessAnalytics(businessId: string): Promise<any>;
   getFarmerB2BAnalytics(farmerId: string): Promise<any>;
   getB2BMarketInsights(): Promise<any>;
+
+  // Product notification operations
+  getActiveProductSubscriptions(): Promise<ProductSubscription[]>;
+  getUserProductSubscriptions(userId: string): Promise<ProductSubscription[]>;
+  createProductSubscription(data: InsertProductSubscription): Promise<ProductSubscription>;
+  updateProductSubscription(id: string, data: Partial<ProductSubscription>): Promise<ProductSubscription | undefined>;
+  deleteProductSubscription(id: string): Promise<boolean>;
+  createProductNotification(data: InsertProductNotification): Promise<ProductNotification>;
+  getProductNotifications(filters?: { userId?: string; productId?: string; status?: string }): Promise<ProductNotification[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2051,6 +2066,82 @@ export class DatabaseStorage implements IStorage {
       overallStats: overallStats[0] || { totalBusinesses: 0, totalOrders: 0, totalVolume: 0 },
       monthlyGrowth,
     };
+  }
+
+  // ============= PRODUCT NOTIFICATION OPERATIONS =============
+
+  // Get active product subscriptions
+  async getActiveProductSubscriptions(): Promise<ProductSubscription[]> {
+    return await db
+      .select()
+      .from(productSubscriptions)
+      .where(eq(productSubscriptions.isActive, true));
+  }
+
+  // Get user's product subscriptions
+  async getUserProductSubscriptions(userId: string): Promise<ProductSubscription[]> {
+    return await db
+      .select()
+      .from(productSubscriptions)
+      .where(eq(productSubscriptions.userId, userId));
+  }
+
+  // Create product subscription
+  async createProductSubscription(data: InsertProductSubscription): Promise<ProductSubscription> {
+    const [subscription] = await db
+      .insert(productSubscriptions)
+      .values(data)
+      .returning();
+    return subscription;
+  }
+
+  // Update product subscription
+  async updateProductSubscription(id: string, data: Partial<ProductSubscription>): Promise<ProductSubscription | undefined> {
+    const [subscription] = await db
+      .update(productSubscriptions)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(productSubscriptions.id, id))
+      .returning();
+    return subscription;
+  }
+
+  // Delete product subscription
+  async deleteProductSubscription(id: string): Promise<boolean> {
+    const result = await db
+      .delete(productSubscriptions)
+      .where(eq(productSubscriptions.id, id));
+    return result.rowCount > 0;
+  }
+
+  // Create product notification log
+  async createProductNotification(data: InsertProductNotification): Promise<ProductNotification> {
+    const [notification] = await db
+      .insert(productNotifications)
+      .values(data)
+      .returning();
+    return notification;
+  }
+
+  // Get product notifications with filters
+  async getProductNotifications(filters: { userId?: string; productId?: string; status?: string } = {}): Promise<ProductNotification[]> {
+    let query = db.select().from(productNotifications);
+    
+    const conditions = [];
+    if (filters.userId) {
+      conditions.push(eq(productNotifications.userId, filters.userId));
+    }
+    if (filters.productId) {
+      conditions.push(eq(productNotifications.productId, filters.productId));
+    }
+    if (filters.status) {
+      conditions.push(eq(productNotifications.status, filters.status));
+    }
+    
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions));
+    }
+    
+    return await query.orderBy(desc(productNotifications.createdAt));
   }
 }
 
