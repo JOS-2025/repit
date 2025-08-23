@@ -832,7 +832,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (whatsappBot.isClientReady()) {
         try {
           // Get order details for notification
-          const order = await storage.getSimpleOrderById(id);
+          const orders = await storage.getSimpleOrders();
+          const order = orders.find(o => o.id === id);
           if (order) {
             const statusMessages: Record<string, string> = {
               'confirmed': 'Your order has been confirmed and is being prepared',

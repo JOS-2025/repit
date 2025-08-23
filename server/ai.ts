@@ -1,121 +1,114 @@
 import OpenAI from "openai";
 
 if (!process.env.OPENAI_API_KEY) {
-  throw new Error("Missing required OpenAI API key: OPENAI_API_KEY");
+  throw new Error("OPENAI_API_KEY environment variable is required");
 }
 
-// the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
-export interface RecipeRecommendation {
+interface UserPreferences {
+  userId?: string;
+  purchaseHistory: Array<{
+    productId: string;
+    productName: string;
+    category: string;
+    price: number;
+    quantity: number;
+    purchasedAt: Date;
+  }>;
+  location?: string;
+  dietaryPreferences?: string[];
+  budget?: {
+    min: number;
+    max: number;
+  };
+}
+
+interface Product {
+  id: string;
   name: string;
   description: string;
-  ingredients: string[];
-  cookingTime: number;
-  difficulty: "Easy" | "Medium" | "Hard";
-  servings: number;
-  instructions: string[];
+  category: string;
+  price: string;
+  unit: string;
+  farmer: {
+    farmName: string;
+    location: string;
+    averageRating: string;
+  };
+  nutrition?: {
+    calories: number;
+    vitamins: string[];
+    benefits: string[];
+  };
 }
 
-export interface ProductRecommendation {
-  productId: string;
-  reason: string;
-  confidence: number;
+interface RecommendationContext {
+  season?: string;
+  weather?: string;
+  timeOfDay?: string;
+  currentCart?: Product[];
+  searchQuery?: string;
 }
 
 export class AIService {
-  async generateRecipeRecommendations(
-    purchasedItems: Array<{ name: string; category: string; description?: string }>
-  ): Promise<RecipeRecommendation[]> {
+  // Generate personalized product recommendations
+  async getPersonalizedRecommendations(
+    userPreferences: UserPreferences,
+    availableProducts: Product[],
+    context: RecommendationContext = {},
+    limit: number = 6
+  ): Promise<Product[]> {
     try {
-      const itemsList = purchasedItems
-        .map(item => `${item.name} (${item.category})`)
-        .join(", ");
+      // Prepare context for AI
+      const userContext = this.buildUserContext(userPreferences, context);
+      const productContext = this.buildProductContext(availableProducts);
 
-      const prompt = `Based on these farm-fresh ingredients: ${itemsList}
+      const prompt = `You are an AI nutritionist and local food expert for a farm-to-table marketplace. 
+      
+User Context:
+${userContext}
 
-Generate 3 delicious, practical recipes that use these ingredients. Each recipe should be healthy, seasonal, and showcase the fresh farm products.
+Available Products:
+${productContext}
 
-Respond with JSON in this exact format:
-{
-  "recipes": [
-    {
-      "name": "Recipe Name",
-      "description": "Brief appetizing description",
-      "ingredients": ["ingredient 1", "ingredient 2"],
-      "cookingTime": 30,
-      "difficulty": "Easy",
-      "servings": 4,
-      "instructions": ["step 1", "step 2", "step 3"]
-    }
-  ]
-}`;
+Current Context:
+- Season: ${context.season || 'Not specified'}
+- Weather: ${context.weather || 'Not specified'}
+- Time: ${context.timeOfDay || 'Not specified'}
+- Current cart: ${context.currentCart?.map(p => p.name).join(', ') || 'Empty'}
+- Search query: ${context.searchQuery || 'None'}
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          {
-            role: "system",
-            content: "You are a farm-to-table chef expert who creates healthy, seasonal recipes using fresh farm ingredients. Always respond with valid JSON only."
-          },
-          {
-            role: "user",
-            content: prompt
-          }
-        ],
-        response_format: { type: "json_object" },
-        temperature: 0.8
-      });
+Please recommend ${limit} products that would be perfect for this user. Consider:
+1. Their purchase history and preferences
+2. Nutritional needs and dietary restrictions
+3. Seasonal availability and freshness
+4. Local farmers and proximity
+5. Current cart items for meal completion
+6. Budget constraints
+7. Weather-appropriate foods
 
-      const result = JSON.parse(response.choices[0].message.content || "{}");
-      return result.recipes || [];
-    } catch (error) {
-      console.error("Error generating recipe recommendations:", error);
-      return [];
-    }
-  }
-
-  async generateProductRecommendations(
-    userHistory: Array<{ name: string; category: string }>,
-    availableProducts: Array<{ id: string; name: string; category: string; description: string }>
-  ): Promise<ProductRecommendation[]> {
-    try {
-      const historyText = userHistory
-        .map(item => `${item.name} (${item.category})`)
-        .join(", ");
-
-      const productsText = availableProducts
-        .map(p => `${p.id}: ${p.name} (${p.category}) - ${p.description}`)
-        .join("\n");
-
-      const prompt = `User's purchase history: ${historyText}
-
-Available products:
-${productsText}
-
-Based on the user's purchase patterns, recommend 3-5 products they might like. Consider:
-- Similar categories they've bought
-- Complementary products that work well together
-- Seasonal items
-- Popular trending products
-
-Respond with JSON in this exact format:
+Respond with a JSON object containing an array of recommended product IDs and brief explanations:
 {
   "recommendations": [
     {
-      "productId": "product-id",
-      "reason": "Why this product is recommended",
-      "confidence": 0.85
+      "productId": "string",
+      "reason": "Why this product is recommended (max 50 words)",
+      "confidence": 0.95,
+      "nutritionalBenefits": ["benefit1", "benefit2"],
+      "mealSuggestion": "How to use this product"
     }
   ]
 }`;
 
       const response = await openai.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
         messages: [
           {
             role: "system",
-            content: "You are an expert agricultural marketplace analyst who understands customer preferences and seasonal farming patterns. Always respond with valid JSON only."
+            content: "You are an expert AI nutritionist and local food advisor. Provide helpful, personalized recommendations based on user preferences and available local produce."
           },
           {
             role: "user",
@@ -123,70 +116,165 @@ Respond with JSON in this exact format:
           }
         ],
         response_format: { type: "json_object" },
-        temperature: 0.7
+        temperature: 0.7,
+        max_tokens: 1500,
       });
 
-      const result = JSON.parse(response.choices[0].message.content || "{}");
-      return result.recommendations || [];
+      const aiResponse = JSON.parse(response.choices[0].message.content || '{"recommendations": []}');
+      
+      // Filter and return actual products based on AI recommendations
+      const recommendedProducts = aiResponse.recommendations
+        .map((rec: any) => {
+          const product = availableProducts.find(p => p.id === rec.productId);
+          return product ? { ...product, aiReason: rec.reason, confidence: rec.confidence } : null;
+        })
+        .filter(Boolean)
+        .slice(0, limit);
+
+      return recommendedProducts;
+
     } catch (error) {
-      console.error("Error generating product recommendations:", error);
+      console.error('AI recommendation error:', error);
+      // Fallback to simple recommendation logic
+      return this.getFallbackRecommendations(userPreferences, availableProducts, limit);
+    }
+  }
+
+  // Generate smart search suggestions
+  async getSearchSuggestions(query: string, userPreferences: UserPreferences): Promise<string[]> {
+    try {
+      const prompt = `Given the search query "${query}" from a user shopping for fresh produce, suggest 5 related searches that would help them find what they're looking for.
+
+User preferences: ${JSON.stringify(userPreferences)}
+
+Consider:
+- Seasonal alternatives
+- Nutritional similar products
+- Cooking method variations
+- Local availability
+
+Respond with a JSON array of search suggestions:
+{"suggestions": ["suggestion1", "suggestion2", "suggestion3", "suggestion4", "suggestion5"]}`;
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+        temperature: 0.6,
+        max_tokens: 200,
+      });
+
+      const result = JSON.parse(response.choices[0].message.content || '{"suggestions": []}');
+      return result.suggestions || [];
+
+    } catch (error) {
+      console.error('AI search suggestion error:', error);
+      return []; // Return empty array on error
+    }
+  }
+
+  // Generate meal planning suggestions
+  async getMealPlanSuggestions(
+    products: Product[],
+    preferences: UserPreferences,
+    mealType: 'breakfast' | 'lunch' | 'dinner' | 'snack' = 'dinner'
+  ): Promise<{
+    mealName: string;
+    description: string;
+    ingredients: string[];
+    cookingTime: string;
+    difficulty: 'easy' | 'medium' | 'hard';
+    nutrition: string;
+  }[]> {
+    try {
+      const prompt = `Create 3 healthy ${mealType} meal suggestions using these available local products:
+
+${products.map(p => `- ${p.name} (${p.category}) - ${p.description}`).join('\n')}
+
+User preferences: ${JSON.stringify(preferences)}
+
+For each meal, provide:
+- Creative meal name
+- Brief description (30 words max)
+- Main ingredients from the available products
+- Estimated cooking time
+- Difficulty level
+- Key nutritional benefits
+
+Respond in JSON format:
+{
+  "meals": [
+    {
+      "mealName": "string",
+      "description": "string", 
+      "ingredients": ["product1", "product2"],
+      "cookingTime": "string",
+      "difficulty": "easy|medium|hard",
+      "nutrition": "string"
+    }
+  ]
+}`;
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+        temperature: 0.8,
+        max_tokens: 800,
+      });
+
+      const result = JSON.parse(response.choices[0].message.content || '{"meals": []}');
+      return result.meals || [];
+
+    } catch (error) {
+      console.error('AI meal planning error:', error);
       return [];
     }
   }
 
-  async generateTrendingProducts(
-    allProducts: Array<{ id: string; name: string; category: string; description: string }>,
-    seasonalContext?: string
-  ): Promise<ProductRecommendation[]> {
-    try {
-      const productsText = allProducts
-        .map(p => `${p.id}: ${p.name} (${p.category}) - ${p.description}`)
-        .join("\n");
+  // Helper methods
+  private buildUserContext(preferences: UserPreferences, context: RecommendationContext): string {
+    const recentPurchases = preferences.purchaseHistory
+      .slice(-10)
+      .map(p => `${p.productName} (${p.category})`)
+      .join(', ');
 
-      const season = seasonalContext || "current season";
+    return `
+- Location: ${preferences.location || 'Not specified'}
+- Recent purchases: ${recentPurchases || 'None'}
+- Dietary preferences: ${preferences.dietaryPreferences?.join(', ') || 'None specified'}
+- Budget range: ${preferences.budget ? `$${preferences.budget.min}-${preferences.budget.max}` : 'Not specified'}
+- Purchase frequency: ${preferences.purchaseHistory.length} previous orders
+    `.trim();
+  }
 
-      const prompt = `Available farm products:
-${productsText}
+  private buildProductContext(products: Product[]): string {
+    return products
+      .slice(0, 20) // Limit for token efficiency
+      .map(p => `${p.id}: ${p.name} (${p.category}) - $${p.price}/${p.unit} - ${p.farmer.farmName}, ${p.farmer.location}`)
+      .join('\n');
+  }
 
-Identify 4-6 products that would be trending or most popular for ${season}. Consider:
-- Seasonal availability and freshness
-- Health trends and nutritional value
-- Versatility in cooking
-- Popular farm-to-table ingredients
+  private getFallbackRecommendations(
+    preferences: UserPreferences,
+    products: Product[],
+    limit: number
+  ): Product[] {
+    // Simple fallback logic based on purchase history and categories
+    const preferredCategories = preferences.purchaseHistory
+      .reduce((acc, purchase) => {
+        acc[purchase.category] = (acc[purchase.category] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
 
-Respond with JSON in this exact format:
-{
-  "trending": [
-    {
-      "productId": "product-id",
-      "reason": "Why this product is trending",
-      "confidence": 0.90
-    }
-  ]
-}`;
+    const sortedProducts = products
+      .map(product => ({
+        ...product,
+        score: preferredCategories[product.category] || 0 + Math.random() * 0.1 // Add small random factor
+      }))
+      .sort((a, b) => b.score - a.score);
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          {
-            role: "system",
-            content: "You are a farm-to-table market trend analyst who understands seasonal produce, health trends, and consumer preferences. Always respond with valid JSON only."
-          },
-          {
-            role: "user",
-            content: prompt
-          }
-        ],
-        response_format: { type: "json_object" },
-        temperature: 0.6
-      });
-
-      const result = JSON.parse(response.choices[0].message.content || "{}");
-      return result.trending || [];
-    } catch (error) {
-      console.error("Error generating trending products:", error);
-      return [];
-    }
+    return sortedProducts.slice(0, limit);
   }
 }
 

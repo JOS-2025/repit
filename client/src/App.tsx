@@ -9,6 +9,8 @@ import { PrivacyBanner, PrivacyStatusIndicator } from "@/components/PrivacyBanne
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 import Home from "@/pages/home";
+import Marketplace from "@/pages/marketplace";
+import GuestCheckout from "@/pages/guest-checkout";
 import FarmerDashboard from "@/pages/farmer-dashboard";
 import Products from "@/pages/products";
 import OrderTracking from "@/pages/order-tracking";
@@ -42,7 +44,10 @@ function Router() {
     <Switch>
       {isLoading || !isAuthenticated ? (
         <>
-          <Route path="/" component={LoginForm} />
+          <Route path="/" component={Marketplace} />
+          <Route path="/login" component={LoginForm} />
+          <Route path="/marketplace" component={Marketplace} />
+          <Route path="/guest-checkout" component={GuestCheckout} />
           <Route path="/products" component={Products} />
           <Route path="/categories" component={Categories} />
           <Route path="/recommendations" component={Recommendations} />
@@ -58,6 +63,7 @@ function Router() {
       ) : (
         <>
           <Route path="/" component={Home} />
+          <Route path="/marketplace" component={Marketplace} />
           <Route path="/farmer-dashboard" component={FarmerDashboard} />
           <Route path="/products" component={Products} />
           <Route path="/categories" component={Categories} />
