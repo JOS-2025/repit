@@ -32,6 +32,8 @@ import {
 } from "./security";
 import { body } from "express-validator";
 import { autoAuditMiddleware, getSecurityDashboard } from "./securityAudit";
+import { registerWhatsAppRoutes } from "./routes/whatsapp";
+import { whatsappBot } from "./whatsappBot";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -72,6 +74,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Auth middleware
   await setupAuth(app);
+
+  // Initialize WhatsApp bot service
+  try {
+    await whatsappBot.initialize();
+    console.log('[WHATSAPP] Bot service initialized');
+  } catch (error) {
+    console.error('[WHATSAPP] Failed to initialize bot service:', error);
+  }
+
+  // Register WhatsApp routes
+  registerWhatsAppRoutes(app);
 
   // Serve uploaded files
   app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
@@ -716,7 +729,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         const order = await storage.createOrder(orderToCreate);
 
-        // Create order items with validation
+        // Create order items with validation and collect for WhatsApp notification
+        const orderItems = [];
         for (const item of items) {
           const orderItemData = insertOrderItemSchema.parse({
             orderId: order.id,
@@ -725,6 +739,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
             pricePerUnit: parseFloat(item.pricePerUnit),
           });
           await storage.createOrderItem(orderItemData);
+          
+          // Get product details for notification
+          try {
+            const product = await storage.getProduct(item.productId);
+            if (product) {
+              orderItems.push({
+                name: product.name,
+                quantity: item.quantity,
+                price: parseFloat(item.pricePerUnit)
+              });
+            }
+          } catch (productError) {
+            console.warn(`[WHATSAPP] Could not fetch product ${item.productId} for notification`);
+          }
+        }
+
+        // Send WhatsApp order confirmation if service is ready
+        if (whatsappBot.isClientReady()) {
+          try {
+            const user = await storage.getUser(userId);
+            const estimatedDelivery = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000); // 2 days from now
+            
+            // For demo purposes, use a test phone number
+            const demoPhone = '+1234567890'; // In real app, this would come from user profile
+            
+            await whatsappBot.sendOrderConfirmation({
+              phone: demoPhone,
+              orderId: order.id,
+              customerName: user?.firstName || 'Customer',
+              items: orderItems,
+              total: parseFloat(orderData.totalAmount),
+              deliveryAddress: orderData.deliveryAddress,
+              estimatedDelivery: estimatedDelivery.toLocaleDateString()
+            });
+            console.log(`[WHATSAPP] Order confirmation sent for order ${order.id}`);
+          } catch (whatsappError) {
+            console.error('[WHATSAPP] Failed to send order confirmation:', whatsappError);
+            // Don't fail the order creation if WhatsApp fails
+          }
         }
 
         // Clear cart
@@ -773,6 +826,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { status } = req.body;
       
       await storage.updateSimpleOrderStatus(id, status);
+      
+      // Send WhatsApp status update notification
+      if (whatsappBot.isClientReady()) {
+        try {
+          // Get order details for notification
+          const order = await storage.getSimpleOrderById(id);
+          if (order) {
+            const statusMessages: Record<string, string> = {
+              'confirmed': 'Your order has been confirmed and is being prepared',
+              'preparing': 'Your order is being prepared by the farmer',
+              'packed': 'Your order has been packed and is ready for shipping',
+              'shipped': 'Your order has been shipped and is on its way',
+              'delivered': 'Your order has been delivered successfully',
+              'cancelled': 'Your order has been cancelled'
+            };
+
+            await whatsappBot.sendOrderStatusUpdate({
+              phone: '+1234567890', // Demo phone number
+              orderId: order.id,
+              customerName: order.customerName || 'Customer',
+              status: status,
+              statusMessage: statusMessages[status] || `Order status updated to ${status}`
+            });
+            console.log(`[WHATSAPP] Status update sent for order ${id}`);
+          }
+        } catch (whatsappError) {
+          console.error('[WHATSAPP] Failed to send status update:', whatsappError);
+        }
+      }
+      
       res.json({ message: "Order status updated successfully" });
     } catch (error) {
       console.error("Error updating simple order status:", error);

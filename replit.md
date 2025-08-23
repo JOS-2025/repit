@@ -123,3 +123,43 @@ FramCart provides comprehensive anonymity features to protect user privacy and e
 - **Privacy Settings Page**: Comprehensive privacy preferences management
 - **Privacy Status Indicator**: Visual indicator when in anonymous mode
 - **Data Clearing Tools**: Manual data deletion options for users
+
+# WhatsApp Bot Integration
+
+## Real-Time Order Notifications
+FramCart features a comprehensive WhatsApp bot integration that provides real-time order notifications and customer support directly through WhatsApp messaging.
+
+## WhatsApp Bot Features
+- **Order Confirmations**: Instant confirmation messages when orders are placed
+- **Status Updates**: Real-time notifications for order status changes (confirmed, preparing, packed, shipped, delivered)
+- **Delivery Notifications**: Driver details and estimated arrival times
+- **Payment Reminders**: Automated reminders for pending payments
+- **Two-Way Communication**: Customers can interact with the bot for order inquiries
+- **Auto-Responses**: Smart responses to common questions and greetings
+
+## Bot Service Architecture
+- **Demo Mode**: Console-based simulation for development and testing
+- **Production Ready**: Full WhatsApp Web integration with QR code authentication
+- **Message Queue**: Reliable message delivery with queue system for offline scenarios
+- **Error Handling**: Graceful failure handling that doesn't affect order processing
+- **Security**: Phone number validation and sanitization
+
+## Notification Types
+- **Order Confirmation**: Detailed order summary with items, total, and delivery info
+- **Status Updates**: Emoji-rich status updates with tracking information
+- **Delivery Alerts**: Driver contact and real-time delivery updates
+- **Support Integration**: Direct connection to customer support through chat
+
+## Technical Implementation
+- **WhatsApp Web.js**: Browser automation for WhatsApp integration
+- **QR Code Authentication**: Secure connection to WhatsApp Business accounts
+- **Message Templates**: Predefined templates for consistent messaging
+- **Phone Number Formatting**: Automatic formatting and validation
+- **Delivery Tracking**: Integration with order management system
+
+## Customer Experience
+- **Mobile-First**: Notifications delivered directly to customers' phones
+- **Rich Messaging**: Formatted messages with emojis and clear structure
+- **Interactive Support**: Customers can reply to messages for support
+- **Opt-in System**: Customers control notification preferences
+- **Privacy Protection**: Phone numbers used only for order notifications

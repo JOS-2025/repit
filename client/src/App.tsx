@@ -18,6 +18,7 @@ import HelpCenter from "@/pages/help-center";
 import TermsConditions from "@/pages/terms-conditions";
 import PrivacyPolicy from "@/pages/privacy-policy";
 import PrivacySettings from "@/pages/privacy-settings";
+import WhatsAppSettings from "@/pages/whatsapp-settings";
 import Checkout from "@/pages/checkout";
 import FarmerAnalytics from "@/pages/farmer-analytics";
 import Wishlist from "@/pages/wishlist";
@@ -78,6 +79,7 @@ function Router() {
           <Route path="/b2b" component={B2BIndex} />
           <Route path="/b2b/register" component={BusinessRegister} />
           <Route path="/b2b/bulk-orders" component={BulkOrders} />
+          <Route path="/whatsapp-settings" component={WhatsAppSettings} />
         </>
       )}
       
