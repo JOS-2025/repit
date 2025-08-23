@@ -1842,20 +1842,22 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getProductPricing(productId: string, tier?: string): Promise<ProductPricing[]> {
-    const query = db
-      .select()
-      .from(productPricing)
-      .where(eq(productPricing.productId, productId));
-    
     if (tier) {
-      return await query
+      return await db
+        .select()
+        .from(productPricing)
         .where(and(
           eq(productPricing.productId, productId),
           eq(productPricing.tier, tier)
-        ));
+        ))
+        .orderBy(asc(productPricing.minQuantity));
     }
     
-    return await query.orderBy(asc(productPricing.minQuantity));
+    return await db
+      .select()
+      .from(productPricing)
+      .where(eq(productPricing.productId, productId))
+      .orderBy(asc(productPricing.minQuantity));
   }
 
   async updateProductPricing(pricingId: string, updates: Partial<InsertProductPricing>): Promise<void> {
@@ -2048,7 +2050,7 @@ export class DatabaseStorage implements IStorage {
     const result = await db
       .delete(productSubscriptions)
       .where(eq(productSubscriptions.id, id));
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   // Create product notification log
@@ -2062,8 +2064,6 @@ export class DatabaseStorage implements IStorage {
 
   // Get product notifications with filters
   async getProductNotifications(filters: { userId?: string; productId?: string; status?: string } = {}): Promise<ProductNotification[]> {
-    let query = db.select().from(productNotifications);
-    
     const conditions = [];
     if (filters.userId) {
       conditions.push(eq(productNotifications.userId, filters.userId));
@@ -2076,10 +2076,17 @@ export class DatabaseStorage implements IStorage {
     }
     
     if (conditions.length > 0) {
-      query = query.where(and(...conditions));
+      return await db
+        .select()
+        .from(productNotifications)
+        .where(and(...conditions))
+        .orderBy(desc(productNotifications.createdAt));
     }
     
-    return await query.orderBy(desc(productNotifications.createdAt));
+    return await db
+      .select()
+      .from(productNotifications)
+      .orderBy(desc(productNotifications.createdAt));
   }
 
   // User preferences operations

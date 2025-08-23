@@ -1727,12 +1727,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }));
         
         // Mock AI recipes for now
-        const recipes = [];
+        const recipes: any[] = [];
         return res.json({ success: true, recipes, basedOn: 'popular items' });
       }
       
       // Mock AI recipes for now
-      const recipes = [];
+      const recipes: any[] = [];
       res.json({ success: true, recipes, basedOn: 'purchase history' });
     } catch (error) {
       console.error("Error generating recipe recommendations:", error);
@@ -1855,7 +1855,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const products = await storage.getProducts();
       
       // Mock search suggestions for now
-      const suggestions = [];
+      const suggestions: any[] = [];
       
       res.json({ suggestions });
     } catch (error) {
