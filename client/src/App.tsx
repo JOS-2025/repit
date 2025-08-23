@@ -59,6 +59,7 @@ function Router() {
           <Route path="/terms" component={TermsConditions} />
           <Route path="/privacy" component={PrivacyPolicy} />
           <Route path="/privacy-settings" component={PrivacySettings} />
+          <Route path="/notification-settings" component={NotificationSettings} />
           <Route path="/escrow-demo" component={EscrowDemo} />
         </>
       ) : (
