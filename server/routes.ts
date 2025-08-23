@@ -530,6 +530,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get trending products endpoint  
+  app.get('/api/products/trending', async (req, res) => {
+    try {
+      const products = await storage.getProductsWithFarmer();
+      // Mock trending logic - in real app, this would be based on sales data, views, etc.
+      const trending = products
+        .sort((a: any, b: any) => parseFloat(b.farmer.averageRating || '0') - parseFloat(a.farmer.averageRating || '0'))
+        .slice(0, 8);
+      res.json(trending);
+    } catch (error) {
+      console.error('Error getting trending products:', error);
+      res.status(500).json({ error: 'Failed to get trending products' });
+    }
+  });
+
   app.get('/api/products/:id', async (req, res) => {
     try {
       const product = await storage.getProduct(req.params.id);
@@ -1463,6 +1478,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error generating product recommendations:", error);
       res.status(500).json({ success: false, message: "Failed to generate product recommendations" });
+    }
+  });
+
+  // Enhanced AI Product Recommendations
+  app.get('/api/ai/recommendations', async (req, res) => {
+    try {
+      const { searchTerm, category } = req.query;
+      const products = await storage.getProductsWithFarmer();
+      
+      // Mock user preferences - in real app, get from user session/profile
+      const userPreferences = {
+        purchaseHistory: [],
+        location: 'Kenya',
+        dietaryPreferences: [],
+      };
+      
+      const context = {
+        searchQuery: searchTerm?.toString(),
+        season: 'current',
+      };
+      
+      const recommendations = await aiService.getPersonalizedRecommendations(
+        userPreferences,
+        products.slice(0, 20), // Limit for performance
+        context,
+        6
+      );
+      
+      res.json(recommendations || []);
+    } catch (error) {
+      console.error('AI recommendations error:', error);
+      res.json([]); // Return empty array instead of error to prevent breaking UI
+    }
+  });
+
+  // AI Search Suggestions
+  app.post('/api/ai/search-suggestions', async (req, res) => {
+    try {
+      const { query } = req.body;
+      
+      if (!query || query.length < 2) {
+        return res.json({ suggestions: [] });
+      }
+      
+      // Mock user preferences - in real app, get from user session
+      const userPreferences = {
+        purchaseHistory: [],
+        location: 'Kenya',
+      };
+      
+      const suggestions = await aiService.getSearchSuggestions(query, userPreferences);
+      
+      res.json({ suggestions });
+    } catch (error) {
+      console.error('AI search suggestions error:', error);
+      res.json({ suggestions: [] }); // Return empty suggestions instead of error
     }
   });
 
