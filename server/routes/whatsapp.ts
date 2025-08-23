@@ -1,12 +1,12 @@
 import type { Express, Request, Response } from "express";
 import { whatsappBot } from "../whatsappBot";
-import { isAuthenticated } from "../replitAuth";
+import { isAuthenticated } from "../auth";
 import { body, validationResult } from "express-validator";
 import { storage } from "../storage";
 
 export function registerWhatsAppRoutes(app: Express) {
   // Get WhatsApp bot status
-  app.get("/api/whatsapp/status", isAuthenticated, async (req: Request, res: Response) => {
+  app.get("/api/whatsapp/status", async (req: Request, res: Response) => {
     try {
       const isReady = whatsappBot.isClientReady();
       const clientInfo = await whatsappBot.getClientInfo();
@@ -24,7 +24,6 @@ export function registerWhatsAppRoutes(app: Express) {
 
   // Send test notification (admin only)
   app.post("/api/whatsapp/test", 
-    isAuthenticated,
     [
       body("phone").isMobilePhone('any').withMessage("Valid phone number required"),
       body("message").isLength({ min: 1, max: 1000 }).withMessage("Message required (1-1000 chars)")
