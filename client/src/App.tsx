@@ -21,6 +21,8 @@ import TermsConditions from "@/pages/terms-conditions";
 import PrivacyPolicy from "@/pages/privacy-policy";
 import PrivacySettings from "@/pages/privacy-settings";
 import WhatsAppSettings from "@/pages/whatsapp-settings";
+import Login from "@/pages/login";
+import FarmerRegister from "@/pages/farmer-register";
 import { LoginForm } from "@/components/LoginForm";
 import Checkout from "@/pages/checkout";
 import FarmerAnalytics from "@/pages/farmer-analytics";
@@ -44,53 +46,45 @@ function Router() {
 
   return (
     <Switch>
+      {/* Routes available to all users */}
+      <Route path="/" component={Home} />
+      <Route path="/login" component={Login} />
+      <Route path="/farmer-register" component={FarmerRegister} />
+      <Route path="/marketplace" component={Marketplace} />
+      <Route path="/products" component={Products} />
+      <Route path="/categories" component={Categories} />
+      <Route path="/recommendations" component={Recommendations} />
+      <Route path="/farmer/:id" component={lazy(() => import("./pages/farmer-profile"))} />
+      <Route path="/community" component={Community} />
+      <Route path="/about" component={About} />
+      <Route path="/help" component={HelpCenter} />
+      <Route path="/terms" component={TermsConditions} />
+      <Route path="/privacy" component={PrivacyPolicy} />
+      <Route path="/privacy-settings" component={PrivacySettings} />
+      <Route path="/notification-settings" component={NotificationSettings} />
+      <Route path="/escrow-demo" component={EscrowDemo} />
+      <Route path="/track-order" component={OrderTracking} />
+      <Route path="/order-tracking" component={OrderTracking} />
+      <Route path="/tracking" component={OrderTrackingLive} />
+      <Route path="/business-registration" component={BusinessRegister} />
+      <Route path="/b2b/register" component={BusinessRegister} />
+      
       {isLoading || !isAuthenticated ? (
         <>
-          <Route path="/" component={Home} />
-          <Route path="/login" component={LoginForm} />
-          <Route path="/marketplace" component={Marketplace} />
           <Route path="/guest-checkout" component={GuestCheckout} />
-          <Route path="/products" component={Products} />
-          <Route path="/categories" component={Categories} />
-          <Route path="/recommendations" component={Recommendations} />
-          <Route path="/farmer/:id" component={lazy(() => import("./pages/farmer-profile"))} />
-          <Route path="/community" component={Community} />
-          <Route path="/about" component={About} />
-          <Route path="/help" component={HelpCenter} />
-          <Route path="/terms" component={TermsConditions} />
-          <Route path="/privacy" component={PrivacyPolicy} />
-          <Route path="/privacy-settings" component={PrivacySettings} />
-          <Route path="/notification-settings" component={NotificationSettings} />
-          <Route path="/escrow-demo" component={EscrowDemo} />
         </>
       ) : (
         <>
-          <Route path="/" component={Home} />
-          <Route path="/marketplace" component={Marketplace} />
           <Route path="/farmer-dashboard" component={FarmerDashboard} />
-          <Route path="/products" component={Products} />
-          <Route path="/categories" component={Categories} />
-          <Route path="/recommendations" component={Recommendations} />
-          <Route path="/farmer/:id" component={lazy(() => import("./pages/farmer-profile"))} />
           <Route path="/orders" component={OrderTracking} />
           <Route path="/driver-dashboard" component={DriverDashboard} />
-          <Route path="/tracking" component={OrderTrackingLive} />
-          <Route path="/help" component={HelpCenter} />
-          <Route path="/terms" component={TermsConditions} />
-          <Route path="/privacy" component={PrivacyPolicy} />
-          <Route path="/privacy-settings" component={PrivacySettings} />
           <Route path="/checkout" component={Checkout} />
           <Route path="/farmer-analytics" component={FarmerAnalytics} />
           <Route path="/wishlist" component={Wishlist} />
-          <Route path="/community" component={Community} />
-          <Route path="/about" component={About} />
           <Route path="/admin" component={AdminDashboard} />
-          <Route path="/escrow-demo" component={EscrowDemo} />
           <Route path="/b2b" component={B2BIndex} />
-          <Route path="/b2b/register" component={BusinessRegister} />
           <Route path="/b2b/bulk-orders" component={BulkOrders} />
           <Route path="/whatsapp-settings" component={WhatsAppSettings} />
-          <Route path="/notification-settings" component={NotificationSettings} />
           <Route path="/settings" component={Settings} />
         </>
       )}

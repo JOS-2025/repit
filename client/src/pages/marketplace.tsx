@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import Footer from "@/components/footer";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface Product {
@@ -901,6 +902,8 @@ export default function Marketplace() {
           </DialogContent>
         </Dialog>
       </div>
+      
+      <Footer />
     </div>
   );
 }

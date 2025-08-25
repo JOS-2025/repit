@@ -1,6 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AnonymousBrowsingMode } from '@/components/AnonymousBrowsingMode';
+import Footer from '@/components/footer';
 import { Shield, Eye, UserX, Database } from 'lucide-react';
 
 export default function PrivacySettings() {
@@ -121,6 +122,8 @@ export default function PrivacySettings() {
           </CardContent>
         </Card>
       </div>
+      
+      <Footer />
     </div>
   );
 }

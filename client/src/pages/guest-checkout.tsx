@@ -12,6 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { ShoppingCart, CreditCard, Truck, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import Footer from "@/components/footer";
 import { useLocation } from "wouter";
 
 const guestCheckoutSchema = z.object({
@@ -369,6 +370,8 @@ export default function GuestCheckout() {
           </div>
         </div>
       </div>
+      
+      <Footer />
     </div>
   );
 }
