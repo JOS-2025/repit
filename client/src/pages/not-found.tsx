@@ -1,4 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
+import Footer from "@/components/footer";
 import { AlertCircle } from "lucide-react";
 
 export default function NotFound() {
@@ -16,6 +17,8 @@ export default function NotFound() {
           </p>
         </CardContent>
       </Card>
+      
+      <Footer />
     </div>
   );
 }

@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import Footer from "@/components/footer";
 import { Package, Plus, Minus, ShoppingCart, CalendarIcon, Truck, DollarSign, ArrowLeft, Edit, Trash2 } from "lucide-react";
 import { Link } from "wouter";
 import { format } from "date-fns";
@@ -477,6 +478,8 @@ export default function BulkOrders() {
           </CardContent>
         </Card>
       </div>
+      
+      <Footer />
     </div>
   );
 }

@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
+import Footer from "@/components/footer";
 import {
   Shield,
   Users,
@@ -500,6 +501,8 @@ export default function AdminDashboard() {
           </TabsContent>
         </Tabs>
       </div>
+      
+      <Footer />
     </div>
   );
 }

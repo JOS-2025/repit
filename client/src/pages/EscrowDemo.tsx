@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { EscrowPaymentModal } from "@/components/EscrowPaymentModal";
+import Footer from "@/components/footer";
 import { 
   CreditCard, 
   Shield, 
@@ -255,6 +256,8 @@ export function EscrowDemo() {
         onClose={() => setShowPaymentModal(false)}
         orderData={mockOrder}
       />
+      
+      <Footer />
     </div>
   );
 }

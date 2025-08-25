@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import Footer from "@/components/footer";
 import { Building, MapPin, Phone, Mail, FileText, CheckCircle, ArrowLeft } from "lucide-react";
 import { Link } from "wouter";
 
@@ -476,6 +477,8 @@ export default function BusinessRegister() {
           </div>
         </div>
       </div>
+      
+      <Footer />
     </div>
   );
 }

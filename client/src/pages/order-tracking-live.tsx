@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import Navigation from '@/components/navigation';
+import Footer from '@/components/footer';
 import LiveTrackingMap from '@/components/live-tracking-map';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -312,6 +313,8 @@ export default function OrderTrackingLive() {
           </CardContent>
         </Card>
       </div>
+      
+      <Footer />
     </div>
   );
 }

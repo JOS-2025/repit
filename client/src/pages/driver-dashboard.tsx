@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import Navigation from '@/components/navigation';
+import Footer from '@/components/footer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -535,6 +536,8 @@ export default function DriverDashboard() {
           </CardContent>
         </Card>
       </div>
+      
+      <Footer />
     </div>
   );
 }

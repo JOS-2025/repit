@@ -1,6 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { WhatsAppOrderNotifications } from '@/components/WhatsAppOrderNotifications';
+import Footer from '@/components/footer';
 import { MessageCircle, Smartphone, Bell } from 'lucide-react';
 
 export default function WhatsAppSettings() {
@@ -98,6 +99,8 @@ export default function WhatsAppSettings() {
           </CardContent>
         </Card>
       </div>
+      
+      <Footer />
     </div>
   );
 }
