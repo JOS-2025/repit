@@ -1,0 +1,109 @@
+# 1. Install dependencies
+npm install react-router-dom react-helmet framer-motion @vitejs/plugin-react
+
+# 2. Create server.js for SPA fallback
+cat <<'EOF' > server.js
+import express from "express";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const app = express();
+const dist = path.join(__dirname, "dist");
+
+app.use(express.static(dist));
+app.get("*", (_, res) => {
+  res.sendFile(path.join(dist, "index.html"));
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(\`Server running on \${PORT}\`));
+EOF
+
+# 3. Update package.json scripts
+sed -i 's/"scripts": {/"scripts": {\n    "start": "node server.js",/' package.json
+sed -i 's/"dev": "vite"/"dev": "vite",\n    "build": "vite build"/' package.json
+
+# 4. Add .replit config
+cat <<'EOF' > .replit
+run = "npm run build && npm run start"
+EOF
+
+# 5. Add replit.nix for Node 20
+cat <<'EOF' > replit.nix
+{ pkgs }: {
+  deps = [
+    pkgs.nodejs_20
+    pkgs.nodePackages.npm
+  ];
+}
+EOF
+
+# 6. Create ScrollToTop.jsx
+mkdir -p src/components
+cat <<'EOF' > src/components/ScrollToTop.jsx
+import { useEffect } from "react";
+import { useLocation } from "react-router-dom";
+
+export default function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => window.scrollTo(0, 0), [pathname]);
+  return null;
+}
+EOF
+
+# 7. Create ErrorBoundary.jsx
+cat <<'EOF' > src/components/ErrorBoundary.jsx
+import { Component } from "react";
+
+export class ErrorBoundary extends Component {
+  state = { hasError: false, error: null };
+  static getDerivedStateFromError(error) { return { hasError: true, error }; }
+  componentDidCatch(error, info) { console.error(error, info); }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-6">
+          <h2 className="text-xl font-semibold">Something went wrong.</h2>
+          <pre className="mt-2 text-sm whitespace-pre-wrap">{String(this.state.error)}</pre>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+EOF
+
+# 8. Create NotFound.jsx page
+mkdir -p src/pages
+cat <<'EOF' > src/pages/NotFound.jsx
+import { Link } from "react-router-dom";
+export default function NotFound() {
+  return (
+    <div className="p-10 text-center">
+      <h1 className="text-3xl font-bold mb-3">Page not found</h1>
+      <p className="mb-6">Let’s get you back to something tasty.</p>
+      <Link to="/" className="px-4 py-2 rounded-lg bg-black text-white">Go Home</Link>
+    </div>
+  );
+}
+EOF
+
+# 9. Create ProtectedRoute.jsx
+cat <<'EOF' > src/components/ProtectedRoute.jsx
+import { Navigate, useLocation } from "react-router-dom";
+
+export default function ProtectedRoute({ children }) {
+  const isAuthed = !!localStorage.getItem("auth_token");
+  const location = useLocation();
+  return isAuthed ? children : <Navigate to="/cart" state={{ from: location }} replace />;
+}
+EOF
+
+echo "✅ All core setup steps done! Next:"
+echo "1. Add <ScrollToTop />, <ErrorBoundary>, and routes in App.jsx"
+echo "2. Wrap Suspense for lazy loading"
+echo "3. Use react-helmet for SEO"
+echo "4. Test in Replit: npm run build && npm run start"
