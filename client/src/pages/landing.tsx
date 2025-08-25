@@ -30,7 +30,7 @@ export default function Landing() {
       <HeroSection />
       <CategoryFilter />
       <ProductGrid 
-        products={products as any[]} 
+        products={(products || []) as any[]} 
         isLoading={productsLoading}
         showLoginPrompt={true}
       />
