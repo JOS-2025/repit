@@ -1,5 +1,8 @@
 import pkg from 'whatsapp-web.js';
 const { Client, LocalAuth, MessageMedia } = pkg;
+
+// Type definitions for compatibility
+type WhatsAppClient = typeof Client.prototype;
 import * as qrcode from 'qrcode-terminal';
 import path from 'path';
 import fs from 'fs';
@@ -14,7 +17,7 @@ interface WhatsAppNotification {
 }
 
 class WhatsAppService {
-  private client: Client | null = null;
+  private client: any = null;
   private isReady = false;
   private messageQueue: WhatsAppNotification[] = [];
 
@@ -51,7 +54,7 @@ class WhatsAppService {
     if (!this.client) return;
 
     // QR Code for initial authentication
-    this.client.on('qr', (qr) => {
+    this.client.on('qr', (qr: string) => {
       console.log('\n[WHATSAPP] QR Code for WhatsApp authentication:');
       qrcode.generate(qr, { small: true });
       console.log('\nScan this QR code with your WhatsApp Business account to connect the bot.');
@@ -70,23 +73,23 @@ class WhatsAppService {
     });
 
     // Authentication failure
-    this.client.on('auth_failure', (msg) => {
+    this.client.on('auth_failure', (msg: any) => {
       console.error('[WHATSAPP] Authentication failed:', msg);
     });
 
     // Client disconnected
-    this.client.on('disconnected', (reason) => {
+    this.client.on('disconnected', (reason: string) => {
       console.log('[WHATSAPP] Client disconnected:', reason);
       this.isReady = false;
     });
 
     // Error handling
-    this.client.on('error', (error) => {
+    this.client.on('error', (error: any) => {
       console.error('[WHATSAPP] Client error:', error);
     });
 
     // Incoming message handler (for basic responses)
-    this.client.on('message', async (message) => {
+    this.client.on('message', async (message: any) => {
       try {
         await this.handleIncomingMessage(message);
       } catch (error) {
