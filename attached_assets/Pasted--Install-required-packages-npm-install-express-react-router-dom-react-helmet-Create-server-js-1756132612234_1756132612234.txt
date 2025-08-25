@@ -1,0 +1,223 @@
+# Install required packages
+npm install express react-router-dom react-helmet
+
+# Create server.js for SPA fallback
+cat <<'EOF' > server.js
+import express from "express";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const app = express();
+const dist = path.join(__dirname, "dist");
+
+app.use(express.static(dist));
+app.get("*", (_, res) => {
+  res.sendFile(path.join(dist, "index.html"));
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(\`Server running on \${PORT}\`));
+EOF
+
+# Update .replit to run production build
+cat <<'EOF' > .replit
+run = "npm run build && npm run start"
+EOF
+
+# Add Node 20 in replit.nix
+cat <<'EOF' > replit.nix
+{ pkgs }: {
+  deps = [
+    pkgs.nodejs_20
+    pkgs.nodePackages.npm
+  ];
+}
+EOF
+
+# Update package.json scripts
+sed -i 's/"scripts": {/"scripts": {\n    "start": "node server.js",/' package.json
+sed -i 's/"dev": "vite"/"dev": "vite",\n    "build": "vite build"/' package.json
+
+# Create directories
+mkdir -p src/components
+mkdir -p src/pages
+
+# Add ScrollToTop component
+cat <<'EOF' > src/components/ScrollToTop.jsx
+import { useEffect } from "react";
+import { useLocation } from "react-router-dom";
+
+export default function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => window.scrollTo(0, 0), [pathname]);
+  return null;
+}
+EOF
+
+# Add ErrorBoundary component
+cat <<'EOF' > src/components/ErrorBoundary.jsx
+import { Component } from "react";
+
+export class ErrorBoundary extends Component {
+  state = { hasError: false, error: null };
+  static getDerivedStateFromError(error) { return { hasError: true, error }; }
+  componentDidCatch(error, info) { console.error(error, info); }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-6">
+          <h2 className="text-xl font-semibold">Something went wrong.</h2>
+          <pre className="mt-2 text-sm whitespace-pre-wrap">
+            {String(this.state.error)}
+          </pre>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+EOF
+
+# Add ProtectedRoute component
+cat <<'EOF' > src/components/ProtectedRoute.jsx
+import { Navigate, useLocation } from "react-router-dom";
+
+export default function ProtectedRoute({ children }) {
+  const isAuthed = !!localStorage.getItem("auth_token");
+  const location = useLocation();
+  return isAuthed ? children : <Navigate to="/cart" state={{ from: location }} replace />;
+}
+EOF
+
+# Add Layout component
+cat <<'EOF' > src/components/Layout.jsx
+import { Outlet, NavLink } from "react-router-dom";
+
+export default function Layout() {
+  const buildLinkClass = ({ isActive }) =>
+    \`px-3 py-2 rounded-lg \${isActive ? "font-semibold underline" : ""}\`;
+
+  return (
+    <div className="min-h-screen flex flex-col">
+      <header className="p-4 shadow flex gap-3">
+        <NavLink to="/" className={buildLinkClass}>Home</NavLink>
+        <NavLink to="/products" className={buildLinkClass}>Products</NavLink>
+        <NavLink to="/cart" className={buildLinkClass}>Cart</NavLink>
+      </header>
+      <main className="flex-1">
+        <Outlet />
+      </main>
+      <footer className="p-4 text-sm text-gray-500">© FarmHarvest</footer>
+    </div>
+  );
+}
+EOF
+
+# Add NotFound page
+cat <<'EOF' > src/pages/NotFound.jsx
+import { Link } from "react-router-dom";
+
+export default function NotFound() {
+  return (
+    <div className="p-10 text-center">
+      <h1 className="text-3xl font-bold mb-3">Page not found</h1>
+      <p className="mb-6">Let’s get you back on track.</p>
+      <Link to="/" className="px-4 py-2 rounded-lg bg-black text-white">Go Home</Link>
+    </div>
+  );
+}
+EOF
+
+# Replace App.jsx with full routing setup
+cat <<'EOF' > src/App.jsx
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { lazy, Suspense } from "react";
+import { Helmet } from "react-helmet";
+import Layout from "./components/Layout.jsx";
+import ScrollToTop from "./components/ScrollToTop.jsx";
+import { ErrorBoundary } from "./components/ErrorBoundary.jsx";
+import ProtectedRoute from "./components/ProtectedRoute.jsx";
+
+const Home = lazy(() => import("./pages/Home.jsx"));
+const Products = lazy(() => import("./pages/Products.jsx"));
+const Product = lazy(() => import("./pages/Product.jsx"));
+const Cart = lazy(() => import("./pages/Cart.jsx"));
+const Checkout = lazy(() => import("./pages/Checkout.jsx"));
+const NotFound = lazy(() => import("./pages/NotFound.jsx"));
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <ScrollToTop />
+      <ErrorBoundary>
+        <Helmet>
+          <title>FarmHarvest</title>
+          <meta
+            name="description"
+            content="Fresh produce delivered locally from Kenyan farmers."
+          />
+        </Helmet>
+        <Suspense fallback={<div className="p-6">Loading...</div>}>
+          <Routes>
+            <Route element={<Layout />}>
+              <Route index element={<Home />} />
+              <Route path="products" element={<Products />} />
+              <Route path="products/:id" element={<Product />} />
+              <Route path="cart" element={<Cart />} />
+              <Route
+                path="checkout"
+                element={
+                  <ProtectedRoute>
+                    <Checkout />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="home" element={<Navigate to="/" replace />} />
+              <Route path="*" element={<NotFound />} />
+            </Route>
+          </Routes>
+        </Suspense>
+      </ErrorBoundary>
+    </BrowserRouter>
+  );
+}
+EOF
+
+# Add placeholder pages so app runs immediately
+cat <<'EOF' > src/pages/Home.jsx
+export default function Home() {
+  return <div className="p-6 text-xl">Welcome to FarmHarvest!</div>;
+}
+EOF
+
+cat <<'EOF' > src/pages/Products.jsx
+export default function Products() {
+  return <div className="p-6 text-xl">Browse our products here.</div>;
+}
+EOF
+
+cat <<'EOF' > src/pages/Product.jsx
+export default function Product() {
+  return <div className="p-6 text-xl">Product details will appear here.</div>;
+}
+EOF
+
+cat <<'EOF' > src/pages/Cart.jsx
+export default function Cart() {
+  return <div className="p-6 text-xl">Your cart is empty for now.</div>;
+}
+EOF
+
+cat <<'EOF' > src/pages/Checkout.jsx
+export default function Checkout() {
+  return <div className="p-6 text-xl">Checkout process goes here.</div>;
+}
+EOF
+
+echo "✅ Full setup complete! Steps:"
+echo "1. Click Run in Replit (it will build and start the server)"
+echo "2. Navigate through Home, Products, Cart, Checkout"
+echo "3. Test direct URL access like /products or /checkout (should work now)"
