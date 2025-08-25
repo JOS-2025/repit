@@ -229,7 +229,7 @@ export default function ProductReviews({ productId, productName }: ProductReview
     <div className="space-y-6">
       
       {/* Review Statistics */}
-      {stats && (
+      {stats ? (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -269,10 +269,10 @@ export default function ProductReviews({ productId, productName }: ProductReview
             </div>
           </CardContent>
         </Card>
-      )}
+      ) : null}
 
       {/* Write Review Section */}
-      {isAuthenticated && canReview && !userReview && (
+      {isAuthenticated && canReview && !userReview ? (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -339,10 +339,10 @@ export default function ProductReviews({ productId, productName }: ProductReview
             )}
           </CardContent>
         </Card>
-      )}
+      ) : null}
 
       {/* User's existing review */}
-      {userReview && (
+      {userReview ? (
         <Card className="border-green-200 bg-green-50">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-green-800">
@@ -360,7 +360,7 @@ export default function ProductReviews({ productId, productName }: ProductReview
             </div>
           </CardContent>
         </Card>
-      )}
+      ) : null}
 
       {/* Login prompt for non-authenticated users */}
       {!isAuthenticated && (

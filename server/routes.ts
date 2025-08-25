@@ -2278,7 +2278,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       body('mobileNumber').optional().isMobilePhone('any').withMessage('Invalid mobile number')
     ],
     handleValidationErrors,
-    async (req, res) => {
+    async (req: any, res: any) => {
       try {
         const user = req.user as any;
         const paymentMethodData = {

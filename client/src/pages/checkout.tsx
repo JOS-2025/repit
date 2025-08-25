@@ -113,7 +113,7 @@ export default function Checkout() {
     );
   }
 
-  if (!cartItems || cartItems.length === 0) {
+  if (!cartItems || (cartItems as any)?.length === 0) {
     return (
       <div className="min-h-screen bg-green-50 dark:bg-gray-900">
         <Navigation />
@@ -131,7 +131,7 @@ export default function Checkout() {
     );
   }
 
-  const totalAmount = cartItems.reduce(
+  const totalAmount = (cartItems as any)?.reduce(
     (sum: number, item: CartItem) => sum + (item.product.price * item.quantity), 
     0
   );
@@ -214,7 +214,7 @@ export default function Checkout() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {cartItems.map((item: CartItem) => (
+                {(cartItems as any)?.map((item: CartItem) => (
                   <div key={item.id} className="flex justify-between items-start">
                     <div className="flex-1">
                       <h4 className="font-medium">{item.product.name}</h4>

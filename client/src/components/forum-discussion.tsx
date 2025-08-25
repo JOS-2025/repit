@@ -127,9 +127,9 @@ export function ForumDiscussion({ className = "" }: ForumDiscussionProps) {
     retry: false,
   });
 
-  const categories: ForumCategory[] = categoriesData?.categories || [];
-  const topics: ForumTopic[] = topicsData?.topics || [];
-  const posts: ForumPost[] = postsData?.posts || [];
+  const categories: ForumCategory[] = (categoriesData as any)?.categories || [];
+  const topics: ForumTopic[] = (topicsData as any)?.topics || [];
+  const posts: ForumPost[] = (postsData as any)?.posts || [];
 
   // Create topic mutation
   const createTopicMutation = useMutation({

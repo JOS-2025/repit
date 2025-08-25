@@ -330,18 +330,18 @@ export default function DriverDashboard() {
           <Card className="mb-6">
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
-                {getVehicleIcon(driverProfile.vehicleType)}
+                {getVehicleIcon((driverProfile as any)?.vehicleType)}
                 <div className="flex-1">
-                  <h3 className="font-semibold text-lg">{driverProfile.driverName}</h3>
+                  <h3 className="font-semibold text-lg">{(driverProfile as any)?.driverName}</h3>
                   <p className="text-gray-600">
-                    {driverProfile.vehicleType} • {driverProfile.vehicleNumber}
+                    {(driverProfile as any)?.vehicleType} • {(driverProfile as any)?.vehicleNumber}
                   </p>
                 </div>
                 <div className="text-right">
-                  <Badge className={driverProfile.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}>
-                    {driverProfile.isActive ? 'Active' : 'Inactive'}
+                  <Badge className={(driverProfile as any)?.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}>
+                    {(driverProfile as any)?.isActive ? 'Active' : 'Inactive'}
                   </Badge>
-                  <p className="text-sm text-gray-500 mt-1">{driverProfile.phoneNumber}</p>
+                  <p className="text-sm text-gray-500 mt-1">{(driverProfile as any)?.phoneNumber}</p>
                 </div>
               </div>
             </CardContent>

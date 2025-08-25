@@ -24,7 +24,7 @@ export function BulkPricing({ productId, basePrice, unit, className = "" }: Bulk
     retry: false,
   });
 
-  const discounts: BulkDiscount[] = discountsData?.discounts || [];
+  const discounts: BulkDiscount[] = (discountsData as any)?.discounts || [];
 
   // Don't show component if no bulk discounts available
   if (isLoading || !discounts || discounts.length === 0) {

@@ -129,14 +129,14 @@ class WhatsAppBotService {
   // Order notification methods
   async sendOrderConfirmation(orderData: OrderData): Promise<boolean> {
     const itemsList = orderData.items
-      .map(item => `• ${item.quantity}x ${item.name}${item.price ? ` - $${parseFloat(item.price).toFixed(2)}` : ''}`)
+      .map(item => `• ${item.quantity}x ${item.name}${item.price ? ` - $${Number(item.price).toFixed(2)}` : ''}`)
       .join('\n');
 
     const message = `🎉 Order Confirmed - FramCart\n\n` +
       `Hello ${orderData.customerName}!\n\n` +
       `✅ Your order #${orderData.orderId} has been confirmed\n\n` +
       `📦 Your Items:\n${itemsList}\n\n` +
-      `💰 Total: $${parseFloat(orderData.total).toFixed(2)}\n` +
+      `💰 Total: $${Number(orderData.total).toFixed(2)}\n` +
       `🏠 Delivery Address: ${orderData.deliveryAddress}\n` +
       `🚚 Estimated Delivery: ${orderData.estimatedDelivery}\n\n` +
       `We'll keep you updated on your order status!\n\n` +

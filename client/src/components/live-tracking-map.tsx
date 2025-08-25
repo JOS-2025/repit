@@ -45,9 +45,9 @@ export default function LiveTrackingMap({ orderId, orderNumber }: LiveTrackingPr
   const [mapLoaded, setMapLoaded] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const mapRef = useRef<HTMLDivElement>(null);
-  const googleMapRef = useRef<google.maps.Map | null>(null);
-  const driverMarkerRef = useRef<google.maps.Marker | null>(null);
-  const routePolylineRef = useRef<google.maps.Polyline | null>(null);
+  const googleMapRef = useRef<any>(null);
+  const driverMarkerRef = useRef<any>(null);
+  const routePolylineRef = useRef<any>(null);
 
   // Get live tracking data
   const { data: trackingData, isLoading, refetch } = useQuery<TrackingData>({
@@ -59,7 +59,7 @@ export default function LiveTrackingMap({ orderId, orderNumber }: LiveTrackingPr
   // Load Google Maps
   useEffect(() => {
     const loadGoogleMaps = () => {
-      if (window.google) {
+      if ((window as any).google) {
         setMapLoaded(true);
         return;
       }
@@ -78,13 +78,13 @@ export default function LiveTrackingMap({ orderId, orderNumber }: LiveTrackingPr
   useEffect(() => {
     if (!mapLoaded || !mapRef.current || !trackingData) return;
 
-    const map = new google.maps.Map(mapRef.current, {
+    const map = new (window as any).google.maps.Map(mapRef.current, {
       zoom: 13,
       center: { 
         lat: trackingData.currentLatitude || -1.2921, 
         lng: trackingData.currentLongitude || 36.8219 
       }, // Default to Nairobi
-      mapTypeId: google.maps.MapTypeId.ROADMAP,
+      mapTypeId: (window as any).google.maps.MapTypeId.ROADMAP,
       styles: [
         {
           featureType: "poi",
@@ -98,10 +98,10 @@ export default function LiveTrackingMap({ orderId, orderNumber }: LiveTrackingPr
 
     // Add pickup marker
     if (trackingData.pickupAddress) {
-      const geocoder = new google.maps.Geocoder();
-      geocoder.geocode({ address: trackingData.pickupAddress }, (results, status) => {
+      const geocoder = new (window as any).google.maps.Geocoder();
+      geocoder.geocode({ address: trackingData.pickupAddress }, (results: any, status: any) => {
         if (status === 'OK' && results?.[0]) {
-          new google.maps.Marker({
+          new (window as any).google.maps.Marker({
             position: results[0].geometry.location,
             map: map,
             title: 'Pickup Location',
@@ -112,8 +112,8 @@ export default function LiveTrackingMap({ orderId, orderNumber }: LiveTrackingPr
                   <circle cx="12" cy="9" r="2.5" fill="white"/>
                 </svg>
               `),
-              scaledSize: new google.maps.Size(32, 32),
-              anchor: new google.maps.Point(16, 32)
+              scaledSize: new (window as any).google.maps.Size(32, 32),
+              anchor: new (window as any).google.maps.Point(16, 32)
             }
           });
         }
@@ -122,10 +122,10 @@ export default function LiveTrackingMap({ orderId, orderNumber }: LiveTrackingPr
 
     // Add delivery marker
     if (trackingData.deliveryAddress) {
-      const geocoder = new google.maps.Geocoder();
-      geocoder.geocode({ address: trackingData.deliveryAddress }, (results, status) => {
+      const geocoder = new (window as any).google.maps.Geocoder();
+      geocoder.geocode({ address: trackingData.deliveryAddress }, (results: any, status: any) => {
         if (status === 'OK' && results?.[0]) {
-          new google.maps.Marker({
+          new (window as any).google.maps.Marker({
             position: results[0].geometry.location,
             map: map,
             title: 'Delivery Location',
@@ -136,8 +136,8 @@ export default function LiveTrackingMap({ orderId, orderNumber }: LiveTrackingPr
                   <circle cx="12" cy="9" r="2.5" fill="white"/>
                 </svg>
               `),
-              scaledSize: new google.maps.Size(32, 32),
-              anchor: new google.maps.Point(16, 32)
+              scaledSize: new (window as any).google.maps.Size(32, 32),
+              anchor: new (window as any).google.maps.Point(16, 32)
             }
           });
         }
@@ -161,7 +161,7 @@ export default function LiveTrackingMap({ orderId, orderNumber }: LiveTrackingPr
     if (driverMarkerRef.current) {
       driverMarkerRef.current.setPosition(driverPosition);
     } else {
-      driverMarkerRef.current = new google.maps.Marker({
+      driverMarkerRef.current = new (window as any).google.maps.Marker({
         position: driverPosition,
         map: googleMapRef.current,
         title: `Driver: ${trackingData.driverName}`,
@@ -172,8 +172,8 @@ export default function LiveTrackingMap({ orderId, orderNumber }: LiveTrackingPr
               <path d="M8 11V9h8v2h-2v6h-4v-6H8z" fill="white"/>
             </svg>
           `),
-          scaledSize: new google.maps.Size(40, 40),
-          anchor: new google.maps.Point(20, 20)
+          scaledSize: new (window as any).google.maps.Size(40, 40),
+          anchor: new (window as any).google.maps.Point(20, 20)
         }
       });
     }
@@ -195,7 +195,7 @@ export default function LiveTrackingMap({ orderId, orderNumber }: LiveTrackingPr
       routePolylineRef.current.setMap(null);
     }
 
-    routePolylineRef.current = new google.maps.Polyline({
+    routePolylineRef.current = new (window as any).google.maps.Polyline({
       path: routePath,
       geodesic: true,
       strokeColor: '#10B981',

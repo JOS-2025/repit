@@ -95,7 +95,7 @@ export default function WishlistButton({
   return (
     <Button
       variant={variant}
-      size={size}
+      size={size as any}
       onClick={handleToggleWishlist}
       disabled={toggleWishlistMutation.isPending}
       className={`${isInWishlist ? 'text-red-500 hover:text-red-600' : 'text-gray-500 hover:text-red-500'} ${className}`}

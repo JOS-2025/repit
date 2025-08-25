@@ -1848,7 +1848,7 @@ export class DatabaseStorage implements IStorage {
         .from(productPricing)
         .where(and(
           eq(productPricing.productId, productId),
-          eq(productPricing.tier, tier)
+          eq(productPricing.tier, tier as any)
         ))
         .orderBy(asc(productPricing.minQuantity));
     }
@@ -1889,7 +1889,7 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(productPricing.productId, productId),
-          eq(productPricing.tier, tier),
+          eq(productPricing.tier, tier as any),
           lte(productPricing.minQuantity, quantity)
         )
       )
