@@ -3,9 +3,9 @@ import App from "./App";
 import "./index.css";
 
 // Register hardened service worker for PWA functionality
-if ('serviceWorker' in navigator) {
+if ('serviceWorker' in navigator && 'production' === 'production') {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/src/service-worker.js')
+    navigator.serviceWorker.register('/service-worker.js')
       .then((registration) => {
         console.log('[PWA] Service Worker registered successfully:', registration.scope);
       })
