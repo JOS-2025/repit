@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { ShoppingCart as ShoppingCartIcon, Plus, Minus, Trash2, CreditCard } from 'lucide-react';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { safeArray, safeNumber, safeString, formatPrice, validateApiResponse } from '@/lib/dataUtils';
 
 interface CartItem {
   id: string;
@@ -31,19 +32,44 @@ export default function ShoppingCart({ onCheckout }: ShoppingCartProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: cartItems = [], isLoading } = useQuery({
+  const { data: rawCartData, isLoading, error } = useQuery({
     queryKey: ['/api/cart'],
     retry: false,
   });
 
+  // Safely extract cart items with validation
+  const cartItems = (() => {
+    try {
+      const validatedResponse = validateApiResponse(rawCartData);
+      if (!validatedResponse.success) {
+        console.warn('Cart data validation failed:', validatedResponse.error);
+        return [];
+      }
+      return safeArray(validatedResponse.data, []);
+    } catch (error) {
+      console.error('Error processing cart data:', error);
+      return [];
+    }
+  })();
+
   const updateQuantityMutation = useMutation({
     mutationFn: async ({ itemId, quantity }: { itemId: string; quantity: number }) => {
-      const response = await fetch(`/api/cart/${itemId}`, {
+      // Validate inputs
+      if (!itemId || quantity < 0 || quantity > 999) {
+        throw new Error('Invalid item ID or quantity');
+      }
+
+      const response = await fetch(`/api/cart/${encodeURIComponent(itemId)}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ quantity }),
+        body: JSON.stringify({ quantity: safeNumber(quantity, 1) }),
       });
-      if (!response.ok) throw new Error('Failed to update cart');
+      
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(`Failed to update cart: ${response.status} ${errorData}`);
+      }
+      
       return response.json();
     },
     onSuccess: () => {
@@ -60,10 +86,19 @@ export default function ShoppingCart({ onCheckout }: ShoppingCartProps) {
 
   const removeItemMutation = useMutation({
     mutationFn: async (itemId: string) => {
-      const response = await fetch(`/api/cart/${itemId}`, {
+      if (!itemId) {
+        throw new Error('Item ID is required');
+      }
+
+      const response = await fetch(`/api/cart/${encodeURIComponent(itemId)}`, {
         method: 'DELETE',
       });
-      if (!response.ok) throw new Error('Failed to remove item');
+      
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(`Failed to remove item: ${response.status} ${errorData}`);
+      }
+      
       return response.json();
     },
     onSuccess: () => {
